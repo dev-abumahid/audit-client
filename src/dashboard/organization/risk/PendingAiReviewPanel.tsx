@@ -390,16 +390,25 @@ export default function PendingAiReviewPanel({
                 <li key={risk.id}>
                   <div className="flex items-center gap-3 px-4 py-2.5">
                     {canWrite && (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(risk.id)}
-                        onChange={() => toggleSelect(risk.id)}
-                        aria-label={t(
-                          "organization.riskRegister.pendingReview.selectRisk",
-                          { name: risk.name }
-                        )}
-                        className="h-4 w-4 shrink-0 rounded border-input"
-                      />
+                      // Round-13 quality-bar-loop finding (visual): round
+                      // 11's select-all checkbox introduced a second,
+                      // visibly different checkbox style (14x14 teal accent
+                      // vs this row checkbox's bare 16x16 default) into the
+                      // same list. Matching the wrapper/classes here also
+                      // gives every row checkbox the same 32x32 hit target
+                      // the select-all already has, not just a color match.
+                      <label className="relative -m-2 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(risk.id)}
+                          onChange={() => toggleSelect(risk.id)}
+                          aria-label={t(
+                            "organization.riskRegister.pendingReview.selectRisk",
+                            { name: risk.name }
+                          )}
+                          className="focus-ring h-3.5 w-3.5 accent-primary"
+                        />
+                      </label>
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
