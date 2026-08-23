@@ -1927,7 +1927,7 @@
         "rcsaFailed": "Failed to generate RCSA",
         "resilienceScanSuccess": "Resilience scan completed successfully",
         "resilienceScanFailed": "Failed to run resilience scan",
-        "createRiskSuccess": "Risk created from this item",
+        "createRiskSuccess": "Risk created from this item — pending review before it's added to the register",
         "createRiskFailed": "Failed to create risk from this item"
       },
       "sections": {

@@ -1927,7 +1927,7 @@
         "rcsaFailed": "Échec de la génération de la RCSA",
         "resilienceScanSuccess": "Analyse de résilience terminée avec succès",
         "resilienceScanFailed": "Échec de l'analyse de résilience",
-        "createRiskSuccess": "Risque créé à partir de cet élément",
+        "createRiskSuccess": "Risque créé à partir de cet élément — en attente de révision avant son ajout au registre",
         "createRiskFailed": "Échec de la création du risque à partir de cet élément"
       },
       "sections": {
