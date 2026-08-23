@@ -264,43 +264,56 @@ export default function SupplierDiscoveryPanel({
             </p>
           ) : (
             <>
-              {selectedForBulk.size > 0 && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className="mb-2 flex flex-wrap items-center gap-3 rounded-lg border border-input bg-muted/30 px-3 py-2 text-xs"
-                >
-                  <span className="font-medium">
-                    {t("organization.suppliers.discovery.selectedCount", {
-                      count: selectedForBulk.size,
-                    })}
-                  </span>
-                  <Button
-                    type="button"
-                    size="touch"
-                    onClick={acceptSelected}
-                    disabled={isBulkAccepting}
-                    aria-busy={isBulkAccepting}
-                  >
-                    {isBulkAccepting ? (
-                      <Loader2 className="animate-spin" aria-hidden="true" />
-                    ) : (
-                      <CircleCheck aria-hidden="true" />
-                    )}
-                    {t("organization.suppliers.discovery.bulkAcceptLabel", {
-                      count: selectedForBulk.size,
-                    })}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="touch"
-                    onClick={() => setSelectedForBulk(new Set())}
-                  >
-                    {t("organization.suppliers.discovery.clearSelection")}
-                  </Button>
-                </div>
-              )}
+              {/* Stays mounted at all times this branch is active -- only
+                  content/visible styling toggle on selectedForBulk. Same
+                  aria-live pre-population fix as SuppliersEntities.tsx's
+                  bulk toolbar (round 17 accessibility finding): a screen
+                  reader only reliably announces a mutation to an
+                  already-present live region, not a node that mounts
+                  already populated. */}
+              <div
+                role="status"
+                aria-live="polite"
+                className={
+                  selectedForBulk.size > 0
+                    ? "mb-2 flex flex-wrap items-center gap-3 rounded-lg border border-input bg-muted/30 px-3 py-2 text-xs"
+                    : undefined
+                }
+              >
+                {selectedForBulk.size > 0 && (
+                  <>
+                    <span className="font-medium">
+                      {t("organization.suppliers.discovery.selectedCount", {
+                        count: selectedForBulk.size,
+                      })}
+                    </span>
+                    <Button
+                      type="button"
+                      size="touch"
+                      onClick={acceptSelected}
+                      disabled={isBulkAccepting}
+                      aria-busy={isBulkAccepting}
+                    >
+                      {isBulkAccepting ? (
+                        <Loader2 className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <CircleCheck aria-hidden="true" />
+                      )}
+                      {t("organization.suppliers.discovery.bulkAcceptLabel", {
+                        count: selectedForBulk.size,
+                      })}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="touch"
+                      onClick={() => setSelectedForBulk(new Set())}
+                    >
+                      {t("organization.suppliers.discovery.clearSelection")}
+                    </Button>
+                  </>
+                )}
+              </div>
               <ul className="flex flex-col gap-2">
                 {visibleCandidates.map(({ candidate, index }) => {
                 const isAdded =

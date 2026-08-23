@@ -391,54 +391,71 @@ export default function SuppliersEntities() {
           </div>
         </div>
 
-        {/* Bulk-action toolbar: only rendered once at least one row on the
-            current page is selected, same pattern as RiskRegisterPage's own
-            bulk toolbar (role="status"/aria-live so the appearance itself
-            is announced, not just its contents). */}
-        {canWrite && someVisibleSelected && (
+        {/* Bulk-action toolbar. The role="status" node itself stays
+            mounted at all times (only its content and visible styling
+            toggle) -- a screen reader only reliably announces a MUTATION
+            to an already-present live region, not a fresh node that
+            mounts already populated. Conditionally rendering the whole
+            div (the previous approach, same pattern RiskRegisterPage
+            still uses) meant the toolbar's appearance was never actually
+            announced -- round 17's accessibility finding, confirmed live. */}
+        {canWrite && (
           <div
             role="status"
             aria-live="polite"
-            className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/30 px-3 py-2 text-xs"
+            className={
+              someVisibleSelected
+                ? "flex flex-wrap items-center gap-3 border-b border-border bg-muted/30 px-3 py-2 text-xs"
+                : undefined
+            }
           >
-            <span className="font-medium">
-              {t("organization.suppliers.selectedCount", {
-                count: selectedIds.size,
-              })}
-            </span>
-            <select
-              value=""
-              disabled={isBulkUpdating}
-              onChange={(e) => confirmBulkStatusChange(e.target.value)}
-              aria-label={t("organization.suppliers.bulkChangeStatusLabel")}
-              className="h-11 rounded-lg border border-input bg-card px-2 text-xs disabled:opacity-50"
-            >
-              <option value="">
-                {t("organization.suppliers.bulkChangeStatus")}
-              </option>
-              <option value="ACTIVE">
-                {t("organization.suppliers.statusActive")}
-              </option>
-              <option value="UNDER_REVIEW">
-                {t("organization.suppliers.statusUnderReview")}
-              </option>
-              <option value="INACTIVE">
-                {t("organization.suppliers.statusInactive")}
-              </option>
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              onClick={() => setIsBulkDeleteModalOpen(true)}
-              className="border-destructive/30 text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              {t("organization.suppliers.bulkDeleteSelected")}
-            </Button>
-            <Button type="button" variant="ghost" size="touch" onClick={clearSelection}>
-              {t("organization.suppliers.clearSelection")}
-            </Button>
+            {someVisibleSelected && (
+              <>
+                <span className="font-medium">
+                  {t("organization.suppliers.selectedCount", {
+                    count: selectedIds.size,
+                  })}
+                </span>
+                <select
+                  value=""
+                  disabled={isBulkUpdating}
+                  onChange={(e) => confirmBulkStatusChange(e.target.value)}
+                  aria-label={t("organization.suppliers.bulkChangeStatusLabel")}
+                  className="h-11 rounded-lg border border-input bg-card px-2 text-xs disabled:opacity-50"
+                >
+                  <option value="">
+                    {t("organization.suppliers.bulkChangeStatus")}
+                  </option>
+                  <option value="ACTIVE">
+                    {t("organization.suppliers.statusActive")}
+                  </option>
+                  <option value="UNDER_REVIEW">
+                    {t("organization.suppliers.statusUnderReview")}
+                  </option>
+                  <option value="INACTIVE">
+                    {t("organization.suppliers.statusInactive")}
+                  </option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="touch"
+                  onClick={() => setIsBulkDeleteModalOpen(true)}
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t("organization.suppliers.bulkDeleteSelected")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="touch"
+                  onClick={clearSelection}
+                >
+                  {t("organization.suppliers.clearSelection")}
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -485,22 +502,28 @@ export default function SuppliersEntities() {
                 key={supplier.id}
                 className="flex flex-wrap items-center justify-between gap-2 p-3"
               >
-                <div className="flex min-w-0 items-start gap-2">
-                  {canWrite && (
-                    <label className="relative -m-2 mt-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(supplier.id)}
-                        onChange={() => toggleSelect(supplier.id)}
-                        aria-label={t("organization.suppliers.selectFor", {
-                          name: supplier.name,
-                        })}
-                        className="h-4 w-4"
-                      />
-                    </label>
-                  )}
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
+                <div className="min-w-0">
+                  {/* Checkbox now shares an items-center row with just the
+                      name+badges line, not the whole notes-inclusive block --
+                      the old items-start + mt-0.5 combo was a guess at
+                      centering that only worked by accident for a
+                      no-notes row and left the checkbox visibly off-center
+                      against the badge row otherwise. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canWrite && (
+                      <label className="relative -m-2 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(supplier.id)}
+                          onChange={() => toggleSelect(supplier.id)}
+                          aria-label={t("organization.suppliers.selectFor", {
+                            name: supplier.name,
+                          })}
+                          className="h-4 w-4"
+                        />
+                      </label>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                       <span className="text-sm font-semibold text-foreground">
                         {supplier.name}
                       </span>
@@ -532,15 +555,21 @@ export default function SuppliersEntities() {
                         </Badge>
                       )}
                     </div>
-                    {supplier.notes && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {supplier.notes}
-                      </p>
-                    )}
                   </div>
+                  {supplier.notes && (
+                    <p className="mt-1 pl-10 text-xs text-muted-foreground">
+                      {supplier.notes}
+                    </p>
+                  )}
                 </div>
                 {canWrite && (
-                  <div className="flex shrink-0 items-center gap-1">
+                  // ml-auto -- once the name+badges block wraps to fill the
+                  // whole row width (narrow viewports / longer badge sets),
+                  // this drops to its own line as flex-wrap's second item.
+                  // Without ml-auto, a lone item on a wrapped line sits at
+                  // the line's start (left) rather than staying pinned to
+                  // the right like the row above it.
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
                     <Button
                       type="button"
                       variant="ghost"

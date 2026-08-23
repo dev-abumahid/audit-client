@@ -2652,3 +2652,102 @@ label's weight/color diverges from country/notes). Batched with code
 quality's row-button finding (same reuse-gap category, disjoint file,
 both Tier 1) -- `SuppliersEntities.tsx`'s edit/delete buttons adopt
 `Button size="icon-touch"`.
+
+## Round 17 (full panel, post round-16 fix + PR #1087 feature expansion + PR #1088 layout fix)
+
+Round 16's fix (shared Label + icon-touch buttons, PR #1086) shipped without
+a follow-up panel before the loop was redirected to feature-scoping work.
+Since then: PR #1087 shipped the vendor-risk fields/filter/sort/bulk-actions
+feature the user explicitly scoped (risk tier, status, next review date,
+primary contact name/email, contract status; status/risk-tier filters; a
+sort control; bulk status-change and bulk-delete; AI-discovery bulk-accept).
+PR #1087's own review round separately caught and fixed a bulk-status
+double-fire gap and added partial-outcome toasts. PR #1088 then fixed 3
+layout issues found via a human visual review (missing page padding,
+unbalanced toolbar, redundant single-row select-all bar). A fresh full
+10-judge panel was run given the scale of change since round 15.
+
+| Axis | Score | Δ (from round 15) |
+|---|---|---|
+| Industry-standards | 8/10 | **+4** |
+| UX | 7/10 | unchanged |
+| Efficiency | 8/10 | +1 |
+| Accessibility | 6/10 (corrected, see below) | **-1 (regressed, below floor)** |
+| Visual/design polish | 7/10 | unchanged |
+| Resilience & edge cases | 8/10 | unchanged |
+| Code quality/maintainability | 8/10 | unchanged |
+| Cross-view integration | 8/10 | **+2** |
+| Mobile/responsive | 9/10 | unchanged |
+| Security | 9/10 | unchanged |
+
+**Average: 7.8/10** (corrected) — not converged. Below floor (7):
+accessibility (6, corrected; judge's raw score was 5).
+
+### Industry-standards: 4 -> 8, findings 1/2/4 confirmed shipped and working
+
+Live-verified all three: vendor-risk fields persist and render correctly
+(tested risk_tier=HIGH, contract_status=EXPIRED, primary_contact_name via
+a real save), status/risk-tier filters are real server-side filters (not
+client no-ops), bulk status-change and bulk-delete both work end-to-end
+with toast confirmation. Two round-15 minor findings still open (discovery
+re-scan silently discards review state; country field has no real
+validation, just a datalist). One new large-scope finding: no compliance-
+attestation/assessment-date tracking, unlike reference vendor-risk tools
+(Vanta/Drata/OneTrust) -- logged for a future round, not this one's fix.
+
+### Cross-view integration: 6 -> 8
+
+risk_tier badges confirmed to route through the same SEVERITY_STYLES
+palette Risk Register/KRI dashboard use (structural guarantee via Badge's
+own variant generation, not incidental). No status-label collision found
+elsewhere in the app. PR #1088's select-all gating confirmed NOT a
+capability regression -- the per-row checkbox still works standalone.
+Dialog-component migration for SupplierFormModal.tsx remains the one
+still-open large-scope finding.
+
+### Accessibility: judge reported 5/10, corrected to 6/10 after personal verification
+
+The judge's most severe finding -- "modal focus trap doesn't hold, Shift+Tab
+from the first element escapes the dialog entirely and closes it" -- was
+personally re-tested end-to-end (per this loop's own standing practice of
+verifying surprising findings before trusting them) and **disproven**:
+- Reproduced cleanly in an isolated tab (after closing 7 stray tabs left
+  open by concurrent judges on the same shared dev server -- exactly the
+  kind of concurrent-session interference this skill's judge prompts warn
+  about, just not the specific "429/console error" symptom named there).
+- With a clean, single-session reproduction: focused the modal's Close
+  button precisely (confirmed via `document.activeElement`), sent a real
+  Shift+Tab, and the trap correctly wrapped to the dialog's actual last
+  focusable element -- which was "Cancel", not "Save", because Save is
+  disabled while the required Name field is empty and the trap's own
+  focusable-element query already correctly excludes disabled elements.
+  With Name filled in (Save enabled), Save -> Tab wrapped correctly back
+  to Close. The trap works exactly as coded in both directions.
+- The judge's very first test in a noisy multi-tab session most likely
+  observed a modal a *different concurrent agent* had already closed or
+  interacted with on a shared tab, not a real app bug.
+
+Two of the judge's three findings ARE real, independently confirmed live:
+- **Broken-functionality, contained**: the bulk-action toolbar's
+  `role="status" aria-live="polite"` div is conditionally rendered
+  (`{someVisibleSelected && (...)}`) with its "N selected..." text already
+  present at mount -- confirmed live (checking a row makes the whole
+  populated node appear in one DOM mutation, not an update to an
+  already-present empty region). Screen readers don't reliably announce
+  content that mounts pre-populated, only mutations to already-present
+  live-region content -- a real WCAG SC 4.1.3 gap on genuinely new surface
+  (the bulk toolbar didn't exist before PR #1087).
+- **Cosmetic-convention, contained**: light-mode "High risk" badge text
+  measures 4.45:1 contrast, just under the 4.5:1 AA minimum for small text
+  (dark mode passes at 6.27:1).
+
+Corrected score: 6/10 (not the judge's raw 5/10) -- one real
+broken-functionality-tier gap plus one minor contrast miss, against a
+clean round-15 baseline of 7/10, still below the 7 floor.
+
+### Guardrail trip: below-floor regression (accessibility, corrected 6 < floor 7)
+
+Per this skill's own guardrail, a below-floor regression triggers a hard
+stop and user escalation even with the average having risen (7.2 -> 7.8).
+Escalating now with the corrected diagnosis above rather than the raw
+judge score, since the dominant finding behind the raw 5/10 was disproven.

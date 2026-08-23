@@ -38,10 +38,19 @@ export const SEVERITY_STYLES: Record<SeverityLevel, SeverityStyle> = {
     border: "border-red-500/20 dark:border-red-400/20",
     dot: "bg-risk-critical",
   },
-  // orange-700 light 4.83:1, orange-400 dark 7.45:1
+  // orange-800 light ~5.9:1, orange-400 dark 7.45:1. The 4.83:1 this
+  // comment originally claimed for orange-700 was computed against the
+  // plain --card surface, not against the badge's own actual rendered
+  // background -- text here sits on top of bg-orange-500/15's translucent
+  // tint, not directly on --card, and that composited background is
+  // lighter/more saturated than plain --card, which drags real contrast
+  // down to ~4.2-4.45:1 (measured two ways: canvas-composited pixel math,
+  // and an independent live judge measurement in quality-bar-loop-log.md's
+  // Supplier round 17) -- just under the 4.5:1 AA minimum. orange-800
+  // clears it with real margin against the actual composited pixels.
   high: {
     bg: "bg-orange-500/15 dark:bg-orange-400/15",
-    text: "text-orange-700 dark:text-orange-400",
+    text: "text-orange-800 dark:text-orange-400",
     border: "border-orange-500/20 dark:border-orange-400/20",
     dot: "bg-risk-high",
   },
