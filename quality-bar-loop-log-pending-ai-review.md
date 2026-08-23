@@ -136,3 +136,72 @@ Below floor (6.5): industry-standards (3), accessibility (5).
 Selection rationale (step 5c priority order): industry-standards (3/10) and UX (6/10) are tied at `stuck_streak = 1`; tie-broken by lowest raw score → industry-standards wins. Of its four open findings (evidence preview, no select-all, no bulk confirmation, dismissed-items not restorable), the evidence-preview gap is the judge's own stated "crux of this axis" and is genuinely `contained` — `description`/`regulatory_citation_note` already exist on the `Risk` type/API response, this is a pure rendering gap, same class of fix as round 2's. "Dismissed-items not restorable" is `large-scope` (no restore/undo mutation exists anywhere in the backend — would need a new endpoint) and is excluded from this round's selection. Select-all and bulk-confirmation are both `contained` but touch the exact same file/interaction surface as each other and are deferred to a future round rather than tripling this round's scope.
 
 Batched the a11y tooltip-reachability fix alongside it per the loop's batching rule: both are Tier 1/2, and their touched files are disjoint (`PendingAiReviewPanel.tsx`/test vs. `CitationConfidenceBadge.tsx`/test) — no merge-conflict risk from combining them into one PR.
+
+## Round 3 — fix shipped ([PR #1065](https://github.com/Qiyrix/aexa-frontend/pull/1065))
+
+Added an evidence-preview expand/collapse affordance to `PendingAiReviewPanel.tsx`: risk names with `description` and/or `regulatory_citation_note` become a real `<button aria-expanded>` with a chevron; clicking reveals a bordered card with both fields (correctly omitting whichever is absent, with conditional spacing). Batched alongside: `CitationConfidenceBadge.tsx`'s root element changed from `<span tabIndex={0} title>` (mouse-only, invalid per `jsx-a11y/no-noninteractive-tabindex`) to a real `<button type="button" aria-describedby={hintId}>` wrapping a visually-hidden `sr-only` hint span — fixes round 2's keyboard-unreachable-tooltip regression. Full review loop came back clean; merged.
+
+Live-verified before merge: expanded/collapsed all 3 real evidence combinations (both fields, description-only, neither), and Tab-reached the confidence badge to confirm real keyboard focus.
+
+## Round 3 (post-fix judge panel)
+
+| Axis | Score | vs. Round 2 |
+|---|---|---|
+| Industry-standards conformance | 6/10 | +3 |
+| UX | 7/10 | +1 |
+| Efficiency | 8/10 | +1 |
+| Accessibility (a11y) | 7.5/10 | +2.5, **cleared floor** |
+| Visual/design polish | 7/10 | unchanged |
+| Resilience & edge cases | 8/10 | +1 |
+| Code quality/maintainability | 8/10 | **-1, regressed (stayed above floor)** |
+| Cross-view integration | 9/10 | unchanged |
+| Security | 9/10 | unchanged |
+| **Average** | **7.72/10** | +0.83 |
+
+Below floor (6.5): industry-standards (6) only.
+
+### Findings summary (verbatim, lightly trimmed) — only axes with new/changed findings
+
+**Industry-standards (6/10, was 3):** Evidence preview confirmed genuinely live and working end-to-end — closes the "blind accept/reject" gap, the axis's single biggest lever. Two of the four original findings remain fully unaddressed: no confirmation gate on bulk actions (immediate mutation on click, unlike GitHub/Jira/Linear bulk-triage conventions), and no select-all control (only per-row checkboxes, unlike the main table below it which has one). Dismissed-item restore remains `large-scope`, correctly out of scope.
+
+**UX (7/10, was 6):** Evidence toggle works well once discovered (per-row `Set` state, multiple rows can stay expanded simultaneously, no lag). But it has a real discoverability gap: the trigger button has zero `hover:` classes and `cursor: default` — the only signal it's clickable is a small 12px chevron. Also newly confirmed: the long seeded name truncates with no `title` fallback, and expanding evidence doesn't un-truncate the header name either. Confirmation-gate and per-row in-flight-indicator findings unchanged from round 1.
+
+**Accessibility (7.5/10, was 5 — regression fixed, cleared floor):** Round-3's targeted fix verified end-to-end live: real Tab keypress reaches the badge, `:focus-visible` true, visible focus ring renders, `aria-describedby` resolves to real hint text. New minor gap: the evidence-toggle button has `aria-expanded` but no `aria-controls` linking it to the region it governs (WCAG 4.1.2 partial-conformance pattern). Blanket `aria-live="polite"` region and missing semantic heading/landmark remain open, untouched by this round.
+
+**Code quality (8/10, was 9 — regression, stayed above floor):** `expandedIds`/`toggleExpanded` faithfully mirrors the existing `selectedIds`/`toggleSelect` pattern (good consistency). Test coverage genuinely covers all 4 real evidence combinations. New finding: comment density is compounding round-over-round — `CitationConfidenceBadge.tsx` now carries more lines of round-1/2/3 rationale prose than actual component logic, and `PendingAiReviewPanel.tsx` has similar archaeology scattered across 5 locations. This is exactly the "restates PR history inline instead of pointing at the tracking log" anti-pattern this loop's own guidance warns against. [cosmetic/convention, contained]
+
+**Efficiency (8/10, was 7):** `expandedIds` updates use correct immutable `Set` copy-mutate-return, matching `toggleSelect`'s existing pattern — no stale-closure/mutation bug. New feature's per-row cost is O(1) and trivial. No new inefficiency introduced.
+
+**Resilience (8/10, was 7):** All 3 real evidence-data combinations (neither/description-only/both) live-verified to render correctly with no dangling labels or spacing bugs. Expand-then-approve leaves a harmless dead `expandedIds` entry (never resurfaces since approved rows leave the `pendingRisks` list for good) — flagged as cosmetic, not a real bug.
+
+**Cross-view integration (9/10, was 9):** No invalid button-nesting introduced by the `<span>`→`<button>` conversion in any of the 3 render locations (live DOM-verified). Visual appearance unchanged across all 3. Round-2's citation_confidence-survives-approval fix re-confirmed live, still holding. `risk.category` bare-text gap still open, untouched by round 3, correctly out of scope.
+
+**Security (9/10, was 9):** New evidence-preview text (`risk.description`/`regulatory_citation_note`) confirmed rendered via plain JSX interpolation, no `dangerouslySetInnerHTML`. **User's explicit ask verified**: `get_all_risks_from_db` hard-gates on `review_status: 'APPROVED'` by default for dashboards/KRI/correlation-matrix/exports/audit-linking; only two narrow, justified exceptions exist (KRI/risk-link *reference* creation, not aggregation) that don't surface unreviewed risk data as if confirmed. Pending risks are correctly excluded from consumers that would treat them as trusted data.
+
+**Visual (7/10, was 7, unchanged):** Button conversion introduces no visual regression (baseline alignment within 0.5px, no unwanted hover/appearance bleed). Confidence palette still distinct from severity in both themes. Two carryover gaps remain open across 2 rounds now: no `title` tooltip fallback on truncated names, no row-level visual hierarchy by confidence.
+
+### stuck_streak (computed after this round)
+
+- industry-standards: 3 → 6, **changed** (though still below floor) → streak resets to **0**
+- accessibility: 5 → 7.5, exited below-floor set entirely
+- All other axes: at/above floor, no streak tracked
+
+No below-floor axis currently has streak > 0. Priority-2 selection falls to its tie-break rule (lowest raw score among candidates) — industry-standards, still below floor at 6/10 and the lowest score of all 9 axes this round, wins selection.
+
+### Next fix (Round 4)
+
+**Selected: add a confirmation step before bulk "Tout approuver"/"Tout rejeter" mutations.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding is at/below floor this round (priority 1 empty). No axis has stuck_streak > 0 (priority 2's primary criterion is trivially tied at 0 everywhere), so priority 2's tie-break applies — lowest raw score — which is industry-standards (6/10), still below the 6.5 floor. Of its two remaining fully-open, `contained` findings (no bulk-confirmation, no select-all), bulk-confirmation is selected as higher-leverage: it's a real data-loss-prevention gap (irreversible bulk dismiss with zero undo step) independently flagged by 3 separate judges this round (industry-standards, UX, and implicitly resilience's "no undo" framing), versus select-all which is pure convenience. Both findings touch the same file (`PendingAiReviewPanel.tsx`) so aren't eligible for the loop's disjoint-file batching rule this round — deferred select-all to a later round rather than risk a same-file conflict.
+
+Deliberately not selected despite being real, still-open findings: code quality's comment-bloat regression (priority 3, stayed above floor, ranks below priority 2's pick) — flagged for a future round, likely paired with a consolidation pass pointing comments at this log file instead of restating history inline; visual's truncated-name-tooltip and row-hierarchy gaps (2 rounds open, same-file as this round's pick); UX's evidence-toggle discoverability gap (no hover state) — cheap, same-file, good candidate to batch with select-all next round since both are Tier 1/2 UX polish on the same interaction surface.
+
+## Round 4 — fix shipped ([PR #1066](https://github.com/Qiyrix/aexa-frontend/pull/1066))
+
+Gated bulk "Approve all"/"Dismiss all" behind a confirmation dialog, reusing the existing shared `DeleteAlertModal` (same reuse pattern already used elsewhere in this codebase for a non-delete "Dismiss" flow with custom copy) rather than building a new dialog. New `pendingBulkAction: "approve" | "dismiss" | null` state gates which action the dialog confirms; pluralized, count-aware copy ("This will approve/dismiss N selected risk(s)...").
+
+One review round (Tier 2, capped per `ship-with-review-loop`'s own guidance): 2 findings —
+1. **Documented, not fixed** (shared-component limitation, not introduced by this PR): the confirm button closes synchronously on click before the mutation resolves (Radix `AlertDialogAction` = `DialogPrimitive.Close`), so `DeleteAlertModal`'s `loading`/disabled-confirm state never actually renders for any of its callers, this one included — on rejection only the `toast.error` carries the failure, the dialog is already gone. Every other `DeleteAlertModal` caller (site/finding/template delete) shares this same characteristic. Fixing it means changing the shared component's confirm-button behavior for every caller — disproportionate scope for this contained fix. Flagged as a candidate for its own future round if worth the shared-component change.
+2. **Fixed**: the dialog could leak "open" in state across the panel's empty-state early return (list empties while dialog is up → early-return branch unmounts the modal without resetting `pendingBulkAction` → a later non-empty render reopens it unprompted against a stale selection). Fixed by resetting the state during render (not an effect, per `react-hooks/set-state-in-effect`) when the pending count transitions to zero. Added a regression test with a negative control confirming it genuinely catches the bug.
+
+Live-verified end-to-end before merge, against real seeded data (not mocks): selected 2 real pending risks → "Approve all" → dialog opened with correct pluralized copy → confirmed → real `POST /api/risk/bulk-approve` fired, both flipped to `APPROVED` in Postgres. Separately verified Dismiss-all → Cancel → no mutation fires, all 3 risks stayed `PENDING_REVIEW`, selection stayed checked.
