@@ -1289,6 +1289,7 @@
         "confirmBulkDismissTitle": "Dismiss selected risks?",
         "confirmBulkDismissDescription_one": "This will dismiss {{count}} selected risk. You can still review it later from the dismissed list.",
         "confirmBulkDismissDescription_other": "This will dismiss {{count}} selected risks. You can still review them later from the dismissed list.",
+        "selectAllLabel": "Select all pending risks",
         "selectRisk": "Select {{name}}",
         "approveFailed": "Failed to approve risk. Please try again.",
         "dismissFailed": "Failed to dismiss risk. Please try again.",

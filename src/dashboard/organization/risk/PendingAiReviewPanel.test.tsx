@@ -343,6 +343,43 @@ describe("PendingAiReviewPanel", () => {
     expect(toast.warning).toHaveBeenCalled()
   })
 
+  // Round-11 quality-bar-loop finding (industry-standards, 3+ rounds): only
+  // per-row checkboxes existed, unlike this app's own main register table
+  // (useRiskBulkActions.ts) and every reference review-queue tool.
+  it("select-all checkbox selects and deselects every pending risk, with indeterminate state when only some are selected", async () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({ id: "risk-1", name: "Risk one" }),
+        makePendingRisk({ id: "risk-2", name: "Risk two" }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+    const [selectAll, rowOne, rowTwo] = screen.getAllByRole("checkbox")
+    expect(selectAll).not.toBeChecked()
+    expect(selectAll).not.toBePartiallyChecked()
+
+    await userEvent.click(rowOne)
+
+    expect(selectAll).not.toBeChecked()
+    expect(selectAll).toBePartiallyChecked()
+
+    await userEvent.click(selectAll)
+
+    expect(rowOne).toBeChecked()
+    expect(rowTwo).toBeChecked()
+    expect(selectAll).toBeChecked()
+    expect(
+      screen.getByText("organization.riskRegister.pendingReview.selectedCount")
+    ).toBeInTheDocument()
+
+    await userEvent.click(selectAll)
+
+    expect(rowOne).not.toBeChecked()
+    expect(rowTwo).not.toBeChecked()
+    expect(selectAll).not.toBeChecked()
+  })
+
   it("selecting rows shows the bulk action bar, and confirming Approve all calls bulkApproveRisks with the selected ids", async () => {
     mockUseGetAllRisksQuery.mockImplementation(
       routeByReviewStatus([
@@ -352,7 +389,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     render(<PendingAiReviewPanel canWrite={true} />)
-    const checkboxes = screen.getAllByRole("checkbox")
+    const checkboxes = screen.getAllByRole("checkbox").slice(1) // [0] is select-all
     await userEvent.click(checkboxes[0])
     await userEvent.click(checkboxes[1])
 
@@ -391,7 +428,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     render(<PendingAiReviewPanel canWrite={true} />)
-    const checkboxes = screen.getAllByRole("checkbox")
+    const checkboxes = screen.getAllByRole("checkbox").slice(1) // [0] is select-all
     await userEvent.click(checkboxes[0])
     await userEvent.click(checkboxes[1])
 
@@ -421,7 +458,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     render(<PendingAiReviewPanel canWrite={true} />)
-    const checkboxes = screen.getAllByRole("checkbox")
+    const checkboxes = screen.getAllByRole("checkbox").slice(1) // [0] is select-all
     await userEvent.click(checkboxes[0])
 
     await userEvent.click(
@@ -453,7 +490,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
-    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(screen.getAllByRole("checkbox")[1]) // [0] is select-all
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.pendingReview.approveAll",
@@ -487,7 +524,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
-    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(screen.getAllByRole("checkbox")[1]) // [0] is select-all
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.pendingReview.dismissAll",
@@ -566,7 +603,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     const { rerender } = render(<PendingAiReviewPanel canWrite={true} />)
-    await userEvent.click(screen.getByRole("checkbox"))
+    await userEvent.click(screen.getAllByRole("checkbox")[1]) // [0] is select-all
     await userEvent.click(
       screen.getByRole("button", {
         name: "organization.riskRegister.pendingReview.approveAll",
@@ -603,7 +640,7 @@ describe("PendingAiReviewPanel", () => {
     )
 
     render(<PendingAiReviewPanel canWrite={true} />)
-    const checkboxes = screen.getAllByRole("checkbox")
+    const checkboxes = screen.getAllByRole("checkbox").slice(1) // [0] is select-all
     await userEvent.click(checkboxes[0])
 
     expect(

@@ -1289,6 +1289,7 @@
         "confirmBulkDismissTitle": "Rejeter les risques sélectionnés ?",
         "confirmBulkDismissDescription_one": "Cela rejettera {{count}} risque sélectionné. Vous pourrez toujours le consulter depuis la liste des risques rejetés.",
         "confirmBulkDismissDescription_other": "Cela rejettera {{count}} risques sélectionnés. Vous pourrez toujours les consulter depuis la liste des risques rejetés.",
+        "selectAllLabel": "Sélectionner tous les risques en attente",
         "selectRisk": "Sélectionner {{name}}",
         "approveFailed": "Échec de l'approbation du risque. Veuillez réessayer.",
         "dismissFailed": "Échec du rejet du risque. Veuillez réessayer.",

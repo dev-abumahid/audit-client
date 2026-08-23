@@ -131,6 +131,25 @@ export default function PendingAiReviewPanel({
     })
   }
 
+  // Round-11 quality-bar-loop finding (industry-standards, 3+ rounds):
+  // only per-row checkboxes existed, unlike every reference review-queue
+  // tool (and this app's own main register table, useRiskBulkActions.ts)
+  // which offer a single header control. Mirrors that hook's shape --
+  // this panel is deliberately self-contained (see top-of-file comment),
+  // not a useRiskBulkActions caller, so the equivalent logic is local.
+  const allPendingSelected =
+    pendingRisks.length > 0 &&
+    pendingRisks.every((r) => selectedIds.has(r.id))
+  const somePendingSelected = pendingRisks.some((r) => selectedIds.has(r.id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const allSelected =
+        pendingRisks.length > 0 && pendingRisks.every((r) => prev.has(r.id))
+      if (allSelected) return new Set()
+      return new Set(pendingRisks.map((r) => r.id))
+    })
+  }
+
   // Every mutation shares one disabled gate across per-row AND bulk
   // buttons -- without this, a user could click a row's own Approve while
   // that same row is selected, then immediately click "Approve all",
@@ -292,6 +311,25 @@ export default function PendingAiReviewPanel({
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 px-4 py-3">
             <div className="flex items-center gap-2">
+              {canWrite && (
+                <label className="relative -m-2 flex h-8 w-8 cursor-pointer items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={allPendingSelected}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate =
+                          somePendingSelected && !allPendingSelected
+                      }
+                    }}
+                    onChange={toggleSelectAll}
+                    aria-label={t(
+                      "organization.riskRegister.pendingReview.selectAllLabel"
+                    )}
+                    className="focus-ring h-3.5 w-3.5 accent-primary"
+                  />
+                </label>
+              )}
               <Bot className="h-4 w-4 text-amber-700 dark:text-amber-400" />
               <span className="text-sm font-semibold text-foreground">
                 {t("organization.riskRegister.pendingReview.heading", {
