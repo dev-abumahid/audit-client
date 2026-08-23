@@ -181,28 +181,46 @@ describe("PendingAiReviewPanel", () => {
 
     render(<PendingAiReviewPanel canWrite={true} />)
 
-    expect(
-      screen.queryByText("AI-generated based on recent phishing campaigns.")
-    ).not.toBeInTheDocument()
-
     const toggle = screen.getByRole("button", {
       name: "Uncontrolled anti-corruption exposure",
     })
     expect(toggle).toHaveAttribute("aria-expanded", "false")
 
+    // Round-9 quality-bar-loop finding (accessibility): aria-expanded alone
+    // doesn't tell assistive tech WHICH region the toggle governs -- verify
+    // aria-controls resolves to a REAL element with a matching id, not just
+    // that the attribute is present with any string. The controlled element
+    // is always mounted (review finding, PR #1071: a conditionally-MOUNTED
+    // panel means aria-controls points at a nonexistent id while collapsed,
+    // the same ARIA reference violation FAQSection.tsx already fixed), so
+    // it's queryable via getElementById even before expanding -- toggled
+    // via `hidden`, not presence/absence.
+    const controlledId = toggle.getAttribute("aria-controls")
+    expect(controlledId).toBeTruthy()
+    const controlledElement = document.getElementById(controlledId!)
+    expect(controlledElement).toHaveAttribute("hidden")
+    expect(
+      screen.queryByText("AI-generated based on recent phishing campaigns.")
+    ).not.toBeVisible()
+
     await user.click(toggle)
 
     expect(
       screen.getByText("AI-generated based on recent phishing campaigns.")
-    ).toBeInTheDocument()
-    expect(screen.getByText("NIS2 Article 21")).toBeInTheDocument()
+    ).toBeVisible()
+    expect(screen.getByText("NIS2 Article 21")).toBeVisible()
     expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(controlledElement).not.toHaveAttribute("hidden")
+    expect(controlledElement).toContainElement(
+      screen.getByText("AI-generated based on recent phishing campaigns.")
+    )
 
     await user.click(toggle)
 
     expect(
       screen.queryByText("AI-generated based on recent phishing campaigns.")
-    ).not.toBeInTheDocument()
+    ).not.toBeVisible()
+    expect(controlledElement).toHaveAttribute("hidden")
     expect(toggle).toHaveAttribute("aria-expanded", "false")
   })
 
@@ -491,6 +509,51 @@ describe("PendingAiReviewPanel", () => {
         name: "organization.riskRegister.pendingReview.dismissingAll",
       })
     ).toBeInTheDocument()
+  })
+
+  // Review finding (PR #1071): the single-risk test above can't prove
+  // evidenceContentId is genuinely keyed by risk.id rather than a
+  // hardcoded/shared string -- it would pass identically either way with
+  // only one row. Expanding two rows at once and checking each toggle's
+  // aria-controls resolves to ITS OWN distinct, correctly-hidden content
+  // block is what actually proves per-row uniqueness.
+  it("gives each row's evidence toggle a distinct aria-controls target when multiple rows are expanded at once", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({
+          id: "risk-1",
+          name: "Risk one",
+          description: "Description for risk one.",
+        }),
+        makePendingRisk({
+          id: "risk-2",
+          name: "Risk two",
+          description: "Description for risk two.",
+        }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+    const toggleOne = screen.getByRole("button", { name: "Risk one" })
+    const toggleTwo = screen.getByRole("button", { name: "Risk two" })
+    const idOne = toggleOne.getAttribute("aria-controls")
+    const idTwo = toggleTwo.getAttribute("aria-controls")
+    expect(idOne).toBeTruthy()
+    expect(idTwo).toBeTruthy()
+    expect(idOne).not.toBe(idTwo)
+
+    await user.click(toggleOne)
+    await user.click(toggleTwo)
+
+    expect(document.getElementById(idOne!)).toContainElement(
+      screen.getByText("Description for risk one.")
+    )
+    expect(document.getElementById(idTwo!)).toContainElement(
+      screen.getByText("Description for risk two.")
+    )
+    expect(document.getElementById(idOne!)).not.toHaveAttribute("hidden")
+    expect(document.getElementById(idTwo!)).not.toHaveAttribute("hidden")
   })
 
   // Review finding (PR #1066): the empty-state early return unmounts the

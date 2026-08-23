@@ -341,6 +341,13 @@ export default function PendingAiReviewPanel({
                 risk.description || risk.regulatory_citation_note
               )
               const isExpanded = expandedIds.has(risk.id)
+              // Round-9 quality-bar-loop finding (accessibility, open since
+              // round 3): aria-expanded alone doesn't tell assistive tech
+              // WHICH region this toggle governs. risk.id is already a
+              // stable, unique key for this row, so it doubles as the
+              // content's id without needing useId() inside the .map().
+              const evidenceContentId = `pending-risk-evidence-${risk.id}`
+              const evidenceToggleId = `pending-risk-evidence-toggle-${risk.id}`
               return (
                 <li key={risk.id}>
                   <div className="flex items-center gap-3 px-4 py-2.5">
@@ -361,8 +368,10 @@ export default function PendingAiReviewPanel({
                         {hasEvidence ? (
                           <button
                             type="button"
+                            id={evidenceToggleId}
                             onClick={() => toggleExpanded(risk.id)}
                             aria-expanded={isExpanded}
+                            aria-controls={evidenceContentId}
                             className="focus-ring flex min-w-0 items-center gap-1 rounded text-left"
                           >
                             {isExpanded ? (
@@ -410,8 +419,21 @@ export default function PendingAiReviewPanel({
                       </div>
                     )}
                   </div>
-                  {hasEvidence && isExpanded && (
-                    <div className="mx-4 mb-2.5 rounded-md border border-amber-500/20 bg-card px-3 py-2 text-xs text-muted-foreground">
+                  {hasEvidence && (
+                    // Review finding (PR #1071): mirrors FAQSection.tsx's
+                    // established fix for the same anti-pattern -- a
+                    // conditionally-MOUNTED panel means aria-controls points
+                    // at a nonexistent id while collapsed, a real ARIA
+                    // reference violation this codebase already treated as
+                    // worth fixing. Always render, toggle visibility via
+                    // `hidden` instead.
+                    <div
+                      id={evidenceContentId}
+                      role="region"
+                      aria-labelledby={evidenceToggleId}
+                      hidden={!isExpanded}
+                      className="mx-4 mb-2.5 rounded-md border border-amber-500/20 bg-card px-3 py-2 text-xs text-muted-foreground"
+                    >
                       {risk.description && <p>{risk.description}</p>}
                       {risk.regulatory_citation_note && (
                         <p className={risk.description ? "mt-1.5" : undefined}>
