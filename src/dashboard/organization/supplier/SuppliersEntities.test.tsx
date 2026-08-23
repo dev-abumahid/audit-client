@@ -254,6 +254,40 @@ describe("SuppliersEntities", () => {
       })
     })
 
+    it("treats a candidate matching an existing supplier's name as already added, case-insensitively", async () => {
+      const user = userEvent.setup()
+      // SUPPLIER.name is "Acme Steel" (the default mockUseGetAllSuppliersQuery
+      // fixture, shared by both SuppliersEntities' own list query and this
+      // panel's own dedup query) -- a differently-cased candidate name must
+      // still be recognized as the same real supplier.
+      mockUnwrap(mockDiscoverSuppliers, {
+        data: {
+          suppliers_information: [
+            {
+              supplier_name: "acme steel",
+              supplier_country: "France",
+              relationship: null,
+              source_url: null,
+            },
+          ],
+        },
+      })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.suppliers.discovery.checkButton" })
+      )
+      await screen.findByText("acme steel")
+
+      const addButton = screen.getByRole("button", {
+        name: "organization.suppliers.discovery.addedFor acme steel",
+      })
+      expect(addButton).toBeDisabled()
+
+      await user.click(addButton)
+      expect(mockCreateNewSupplier).not.toHaveBeenCalled()
+    })
+
     it("dismissing a candidate removes it from view without persisting anything", async () => {
       const user = userEvent.setup()
       mockUnwrap(mockDiscoverSuppliers, {

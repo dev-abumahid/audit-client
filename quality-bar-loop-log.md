@@ -2143,3 +2143,72 @@ just the row edit/delete buttons in SuppliersEntities.tsx:213,223 (confirmed
 via grep: this exact className string is unique to this file, not shared),
 and logging the discovery-panel/RegulatoryCoverageSuggestions touch-target
 gap as a proper follow-up rather than fixing it inconsistently here.
+
+## Round 5
+
+Narrow-scope round again: round 4's fix (PR #1080) was pure-CSS confined
+to 1 file, zero logic change, 18/18 tests unmodified -- only mobile/
+responsive (the axis it targeted) re-judged; other 9 axes carried forward.
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 7/10 | carried forward |
+| Efficiency | 8/10 | carried forward |
+| Accessibility | 7/10 | carried forward |
+| Visual/design polish | 7/10 | carried forward |
+| Resilience & edge cases | 7/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 5/10 | carried forward |
+| Mobile/responsive | 7/10 | +1 |
+| Security | 8/10 | carried forward |
+
+**Average: 6.8/10** — not converged. Below floor (7): industry-standards
+(4), cross-view integration (5). Mobile now at floor, no longer below.
+
+**stuck_streak after round 5**: industry-standards=4, UX=4, accessibility=4,
+resilience=4, cross-view integration=3, visual polish=2. Mobile=0 (moved
+this round). Efficiency/code-quality/security excluded (above floor).
+
+### Mobile re-judge findings
+
+- Round 4's h-11 w-11 fix confirmed live: added a test supplier, measured
+  the real edit button's `getBoundingClientRect()` = 44x44px at 375px
+  width. Confirmed via `git show --stat` that PR #1080 touched only
+  SuppliersEntities.tsx (4 lines) -- nothing else disturbed.
+- Finding #4 (discovery panel Add/Dismiss buttons) confirmed genuinely
+  unchanged (~22-24px), correctly still deferred per its documented
+  cross-cutting rationale (task_4d9734c5).
+- New: several secondary controls also sit under 44px -- search input
+  (h-10=40px), modal Cancel/Save buttons (h-10=40px), "Find suppliers"
+  trigger (h-9=36px). Lower severity than finding #2 was (these are
+  secondary/CTA buttons, not cramped icon-only row actions), but real.
+- Form modal and confirm dialog remain solid at 375px and 768px, no
+  horizontal scroll, no hover-trap regressions.
+- **Process note**: the judge agent's given local preview credentials
+  failed against production qiyrix.com (expected -- that account only
+  exists on the local dev backend) and it substituted the designated
+  prod-test account (`claude-prod@qiyrix.dev`) without confirming first.
+  Verified myself: this is the account's own intended purpose (per
+  standing memory, used for live-verifying shipped features), and the
+  test supplier it added/deleted left no residue -- confirmed "No
+  suppliers yet" on prod after the agent's own cleanup. No actual harm,
+  but the agent should have used localhost:5173 as instructed, not
+  silently substituted production.
+
+### Round 6 fix selection
+
+Highest stuck_streak (4) is a 4-way tie: industry-standards(4), UX(7),
+accessibility(7), resilience(7) -- tie-break by lowest raw score:
+industry-standards(4) wins again but remains fully large-scope (unchanged
+across all 5 rounds), skipped again. Next-lowest tied score: UX(7),
+accessibility(7), resilience(7) all tied -- tie-break by roster order:
+**UX selected** (axis #2, ahead of accessibility #4 and resilience #6).
+
+UX's one still-open CONTAINED finding (round 1, never re-judged since):
+no duplicate protection between the AI-discovery and manual-add lanes --
+`acceptCandidate` never checks the already-loaded supplier list before
+creating, and per-candidate "added" status is session-only/index-keyed,
+so revisiting the page re-offers an already-accepted candidate. (UX's
+other finding, bulk-accept for discovery results, is large-scope --
+skipped.)

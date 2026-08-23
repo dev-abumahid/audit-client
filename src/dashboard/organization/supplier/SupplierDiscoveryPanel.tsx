@@ -8,6 +8,7 @@ import type { SuggestedSupplier } from "@/redux/apis/organization/supplier.api"
 import {
   useCreateNewSupplierMutation,
   useDiscoverSuppliersMutation,
+  useGetAllSuppliersQuery,
 } from "@/redux/apis/organization/supplier.api"
 
 interface SupplierDiscoveryPanelProps {
@@ -40,6 +41,36 @@ export default function SupplierDiscoveryPanel({
   const [createNewSupplier, { isLoading: isAdding }] =
     useCreateNewSupplierMutation()
 
+  // No dedup between this panel's AI-accept flow and the manual-add flow
+  // (or a candidate re-offered across page visits) meant "Add" could
+  // silently create a second row for a supplier that already exists.
+  // Cross-checking against the org's real supplier list (not just this
+  // session's local `status` map) closes that gap -- and since
+  // createNewSupplier invalidates the same SUPPLIER cache tag this query
+  // provides, a candidate flips to "already added" the moment it's
+  // accepted, without a page reload. limit: 100 matches aexa-server's
+  // paginationHelper MAX_LIMIT ceiling (issue #117) -- an org with more
+  // suppliers than that could still see a rare missed duplicate; a full
+  // org-wide dedup would need its own backend endpoint, out of scope here.
+  const { data: existingSuppliersData, error: existingSuppliersError } =
+    useGetAllSuppliersQuery({
+      page: 1,
+      limit: 100,
+      searchTerm: "",
+    })
+  if (existingSuppliersError) {
+    // Fails toward "dedup silently doesn't happen" rather than crashing the
+    // whole panel -- but that degraded state is otherwise invisible, so at
+    // least surface it for anyone debugging a real duplicate report.
+    console.warn(
+      "Supplier dedup check failed to load the existing supplier list -- AI-discovered candidates won't be checked against real duplicates this render.",
+      existingSuppliersError
+    )
+  }
+  const existingNames = new Set(
+    (existingSuppliersData?.data ?? []).map((s) => s.name.trim().toLowerCase())
+  )
+
   // Dismiss's own (removed) button is the focused element right before this
   // fires -- without moving focus, it drops to <body>. Same fix as
   // RegulatoryCoverageSuggestions.tsx's headingRef.
@@ -70,6 +101,13 @@ export default function SupplierDiscoveryPanel({
 
   const acceptCandidate = async (candidate: SuggestedSupplier, index: number) => {
     if (!candidate.supplier_name) return
+    // Defense in depth against the Add button's own disabled state being
+    // stale for a moment (e.g. a race with the existingNames refetch) --
+    // never actually re-create a supplier that already exists.
+    if (existingNames.has(candidate.supplier_name.trim().toLowerCase())) {
+      setStatus((prev) => new Map(prev).set(index, "added"))
+      return
+    }
     try {
       await createNewSupplier({
         name: candidate.supplier_name,
@@ -161,7 +199,10 @@ export default function SupplierDiscoveryPanel({
           ) : (
             <ul className="flex flex-col gap-2">
               {visibleCandidates.map(({ candidate, index }) => {
-                const isAdded = status.get(index) === "added"
+                const isAdded =
+                  status.get(index) === "added" ||
+                  (!!candidate.supplier_name &&
+                    existingNames.has(candidate.supplier_name.trim().toLowerCase()))
                 return (
                   <li
                     key={index}
