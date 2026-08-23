@@ -303,6 +303,40 @@ describe("RiskRegisterPage", () => {
     expect(document.querySelector(".lucide-anchor")).not.toBeInTheDocument()
   })
 
+  it("shows the citation confidence badge in the register table when set", () => {
+    // Round-1 quality-bar-loop finding (cross-view integration): this
+    // signal used to exist only in the pending-review queue and vanish
+    // once a risk was approved -- now carries over into the main table.
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ citation_confidence: "ai_estimate" })] },
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText(
+        "organization.riskRegister.citationConfidence.ai_estimate"
+      )
+    ).toBeInTheDocument()
+  })
+
+  it("does not show a citation confidence badge when citation_confidence is null", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: { data: [makeRisk({ citation_confidence: null })] },
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText(
+        "organization.riskRegister.citationConfidence.ai_estimate"
+      )
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.citationConfidence.none")
+    ).not.toBeInTheDocument()
+  })
+
   it("renders the plural subtitle for multiple visible risks", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk(), makeRisk({ id: "risk-2" })] },

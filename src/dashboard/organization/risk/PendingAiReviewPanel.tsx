@@ -5,6 +5,7 @@
 // rather than reusing useRiskBulkActions, since that hook's mutations
 // (delete/status-update) and reset-on-filter-change semantics don't match
 // approve/dismiss's much simpler, filter-independent shape.
+import CitationConfidenceBadge from "@/components/dashboard/organization/CitationConfidenceBadge"
 import {
   useApproveRiskMutation,
   useBulkApproveRisksMutation,
@@ -12,7 +13,6 @@ import {
   useDismissRiskMutation,
   useGetAllRisksQuery,
 } from "@/redux/apis/organization/risk.api"
-import type { Risk } from "@/types/organization"
 import { Bot, Check, ChevronDown, ChevronUp, Loader2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -23,36 +23,15 @@ interface PendingAiReviewPanelProps {
 }
 
 // design-docs/site-ai-risk-register-generation.md §3 -- "the single most
-// important trust signal" per that doc's own review notes. Not previously
-// surfaced anywhere in the frontend; first use here, since this is exactly
-// the moment a reviewer needs it most: which pending suggestions to
-// scrutinize closest before approving.
+// important trust signal" per that doc's own review notes. Surfaces which
+// pending suggestions to scrutinize closest before approving. The badge
+// itself is CitationConfidenceBadge (shared with RiskDetails.tsx/
+// RiskRegisterPage.tsx as of the round-1 cross-view-integration fix -- this
+// signal used to exist only here and vanish the moment a risk was approved).
 const CONFIDENCE_RANK: Record<string, number> = {
   none: 0,
   ai_estimate: 1,
   curated_verified: 2,
-}
-
-function ConfidenceBadge({
-  confidence,
-}: {
-  confidence: Risk["citation_confidence"]
-}) {
-  const { t } = useTranslation()
-  if (!confidence) return null
-  const styles: Record<string, string> = {
-    curated_verified:
-      "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-    ai_estimate: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-    none: "bg-muted text-muted-foreground",
-  }
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${styles[confidence]}`}
-    >
-      {t(`organization.riskRegister.citationConfidence.${confidence}`)}
-    </span>
-  )
 }
 
 export default function PendingAiReviewPanel({
@@ -293,7 +272,9 @@ export default function PendingAiReviewPanel({
                     <span className="truncate text-sm font-medium text-foreground">
                       {risk.name}
                     </span>
-                    <ConfidenceBadge confidence={risk.citation_confidence} />
+                    <CitationConfidenceBadge
+                      confidence={risk.citation_confidence}
+                    />
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {risk.category}

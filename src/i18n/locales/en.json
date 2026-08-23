@@ -1266,7 +1266,10 @@
       "citationConfidence": {
         "curated_verified": "Verified",
         "ai_estimate": "AI estimate",
-        "none": "No citation"
+        "none": "No citation",
+        "curated_verifiedHint": "This regulatory citation was matched against a curated, human-reviewed framework reference.",
+        "ai_estimateHint": "This regulatory citation is the AI's best estimate, not matched against a verified framework reference -- worth double-checking.",
+        "noneHint": "No regulatory citation was found or claimed for this risk."
       },
       "pendingReview": {
         "heading_one": "{{count}} risk awaiting your review",

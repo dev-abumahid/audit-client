@@ -1266,7 +1266,10 @@
       "citationConfidence": {
         "curated_verified": "Vérifié",
         "ai_estimate": "Estimation IA",
-        "none": "Aucune citation"
+        "none": "Aucune citation",
+        "curated_verifiedHint": "Cette citation réglementaire a été mise en correspondance avec une référence de cadre réglementaire sélectionnée et validée par un humain.",
+        "ai_estimateHint": "Cette citation réglementaire est une estimation de l'IA, non validée par rapport à une référence de cadre vérifiée -- à vérifier de préférence.",
+        "noneHint": "Aucune citation réglementaire n'a été trouvée ou revendiquée pour ce risque."
       },
       "pendingReview": {
         "heading_one": "{{count}} risque en attente de révision",

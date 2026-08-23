@@ -216,6 +216,46 @@ describe("RiskDetails", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("shows the citation confidence badge when set, distinct from source_type", () => {
+    // Round-1 quality-bar-loop finding (cross-view integration): this
+    // signal used to exist only in the pending-review queue and vanish
+    // once a risk was approved -- now carries over to the detail page.
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          citation_confidence: "curated_verified",
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText(
+        "organization.riskRegister.citationConfidence.curated_verified"
+      )
+    ).toBeInTheDocument()
+  })
+
+  it("does not render a citation confidence badge when citation_confidence is null", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: { data: makeRisk({ citation_confidence: null }) },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText(
+        "organization.riskRegister.citationConfidence.curated_verified"
+      )
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.citationConfidence.none")
+    ).not.toBeInTheDocument()
+  })
+
   it("does not show an Anchored or Estimated indicator for a manually created risk", () => {
     // Regression: source_type defaults to "estimated" in the DB for every
     // row including manually created ones -- this indicator must only

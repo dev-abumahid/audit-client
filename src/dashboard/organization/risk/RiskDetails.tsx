@@ -1,3 +1,4 @@
+import CitationConfidenceBadge from "@/components/dashboard/organization/CitationConfidenceBadge"
 import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import { useGetRiskApprovalStateQuery } from "@/redux/apis/organization/riskApproval.api"
 import { useGetSingleRiskQuery } from "@/redux/apis/organization/risk.api"
@@ -204,6 +205,18 @@ export default function RiskDetails() {
                   {t("organization.riskRegister.estimatedBadge")}
                 </span>
               ) : null}
+              {/* Round-1 quality-bar-loop finding (cross-view integration,
+                  PendingAiReviewPanel): citation_confidence previously
+                  existed only in the pending-review queue and vanished the
+                  moment a risk was approved -- no trace of a reviewer's
+                  "verified" judgment survived anywhere else. Distinct
+                  concept from source_type above (regulatory-citation
+                  confidence, not external-data grounding), only rendered
+                  when actually set. */}
+              <CitationConfidenceBadge
+                confidence={risk.citation_confidence}
+                size="md"
+              />
             </div>
             <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-foreground">
               {risk.name}

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import CitationConfidenceBadge from "@/components/dashboard/organization/CitationConfidenceBadge"
 import UnscoredBadge from "@/components/dashboard/organization/UnscoredBadge"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import FilteredByNotice from "@/components/shared/FilteredByNotice"
@@ -337,6 +338,17 @@ const RiskRow = memo(function RiskRow({
           </span>
         ) : (
           t("organization.riskRegister.manual")
+        )}
+        {/* Round-1 quality-bar-loop finding (cross-view integration,
+            PendingAiReviewPanel): citation_confidence previously vanished
+            once a risk left the pending-review queue -- carries over here
+            as a compact badge, same shared component the queue itself now
+            uses, distinct from the Anchor/source_type indicator above
+            (regulatory-citation confidence, not external-data grounding). */}
+        {risk.citation_confidence && (
+          <div className="mt-0.5">
+            <CitationConfidenceBadge confidence={risk.citation_confidence} />
+          </div>
         )}
       </td>
       <td className="px-3 py-2.5">
