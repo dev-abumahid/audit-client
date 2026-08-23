@@ -141,6 +141,124 @@ describe("PendingAiReviewPanel", () => {
     ).toBeInTheDocument()
   })
 
+  it("does not show an expand toggle for a risk with no description or regulatory citation note", () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({ description: undefined, regulatory_citation_note: undefined }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Uncontrolled anti-corruption exposure",
+      })
+    ).not.toBeInTheDocument()
+    // The name itself still renders, just as plain text, not a toggle button.
+    expect(
+      screen.getByText("Uncontrolled anti-corruption exposure")
+    ).toBeInTheDocument()
+  })
+
+  it("expands to reveal the description and regulatory citation note, and collapses again", async () => {
+    // Round-2 quality-bar-loop finding (industry-standards, "the crux of
+    // this axis"): a reviewer previously had no way to see WHY the AI
+    // proposed a risk before approving/dismissing it.
+    const user = userEvent.setup()
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({
+          description: "AI-generated based on recent phishing campaigns.",
+          regulatory_citation_note: "NIS2 Article 21",
+        }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(
+      screen.queryByText("AI-generated based on recent phishing campaigns.")
+    ).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole("button", {
+      name: "Uncontrolled anti-corruption exposure",
+    })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+
+    await user.click(toggle)
+
+    expect(
+      screen.getByText("AI-generated based on recent phishing campaigns.")
+    ).toBeInTheDocument()
+    expect(screen.getByText("NIS2 Article 21")).toBeInTheDocument()
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+
+    await user.click(toggle)
+
+    expect(
+      screen.queryByText("AI-generated based on recent phishing campaigns.")
+    ).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("shows the evidence block when only a regulatory citation note is present (no description)", async () => {
+    const user = userEvent.setup()
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({
+          description: "",
+          regulatory_citation_note: "GDPR Article 32",
+        }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Uncontrolled anti-corruption exposure",
+      })
+    )
+
+    expect(screen.getByText("GDPR Article 32")).toBeInTheDocument()
+  })
+
+  it("shows only the description, with no citation label, when regulatory_citation_note is absent", async () => {
+    // Round-3 review finding: the description-only path (as opposed to
+    // citation-note-only, tested above) was previously unexercised --
+    // the conditional `mt-1.5` spacing only kicks in when both fields
+    // are present, and this confirms the citation label doesn't render
+    // when there's nothing to attach it to.
+    const user = userEvent.setup()
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({
+          description: "Estimated risk based on general industry trends.",
+          regulatory_citation_note: null,
+        }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Uncontrolled anti-corruption exposure",
+      })
+    )
+
+    expect(
+      screen.getByText("Estimated risk based on general industry trends.")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "organization.riskRegister.pendingReview.regulatoryCitationNote",
+        { exact: false }
+      )
+    ).not.toBeInTheDocument()
+  })
+
   it("hides Approve/Dismiss actions and the selection checkbox for a read-only viewer", () => {
     mockUseGetAllRisksQuery.mockImplementation(
       routeByReviewStatus([makePendingRisk()])

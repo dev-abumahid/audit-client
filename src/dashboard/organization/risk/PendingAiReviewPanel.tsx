@@ -40,6 +40,21 @@ export default function PendingAiReviewPanel({
   const { t } = useTranslation()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showDismissed, setShowDismissed] = useState(false)
+  // Round-2 quality-bar-loop finding (industry-standards, "the crux of this
+  // axis"): a reviewer previously had no way to see WHY the AI proposed a
+  // risk before approving/dismissing it -- description/regulatory_citation_
+  // note already exist on every Risk but were never rendered here. A Set
+  // (not a single id) so more than one row can stay expanded while
+  // comparing several pending suggestions.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   // limit:100 -- same "approximate above N, review queues don't
   // realistically accumulate hundreds of untouched rows" precedent as
@@ -253,57 +268,99 @@ export default function PendingAiReviewPanel({
             )}
           </div>
           <ul className="divide-y divide-amber-500/10">
-            {pendingRisks.map((risk) => (
-              <li key={risk.id} className="flex items-center gap-3 px-4 py-2.5">
-                {canWrite && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(risk.id)}
-                    onChange={() => toggleSelect(risk.id)}
-                    aria-label={t(
-                      "organization.riskRegister.pendingReview.selectRisk",
-                      { name: risk.name }
+            {pendingRisks.map((risk) => {
+              const hasEvidence = Boolean(
+                risk.description || risk.regulatory_citation_note
+              )
+              const isExpanded = expandedIds.has(risk.id)
+              return (
+                <li key={risk.id}>
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    {canWrite && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(risk.id)}
+                        onChange={() => toggleSelect(risk.id)}
+                        aria-label={t(
+                          "organization.riskRegister.pendingReview.selectRisk",
+                          { name: risk.name }
+                        )}
+                        className="h-4 w-4 shrink-0 rounded border-input"
+                      />
                     )}
-                    className="h-4 w-4 shrink-0 rounded border-input"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {risk.name}
-                    </span>
-                    <CitationConfidenceBadge
-                      confidence={risk.citation_confidence}
-                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        {hasEvidence ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(risk.id)}
+                            aria-expanded={isExpanded}
+                            className="focus-ring flex min-w-0 items-center gap-1 rounded text-left"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            )}
+                            <span className="truncate text-sm font-medium text-foreground">
+                              {risk.name}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {risk.name}
+                          </span>
+                        )}
+                        <CitationConfidenceBadge
+                          confidence={risk.citation_confidence}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {risk.category}
+                      </span>
+                    </div>
+                    {canWrite && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(risk.id)}
+                          disabled={anyReviewActionInFlight}
+                          className="focus-ring flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {t("organization.riskRegister.pendingReview.approve")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDismiss(risk.id)}
+                          disabled={anyReviewActionInFlight}
+                          className="focus-ring flex items-center gap-1 rounded-md border border-input bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          {t("organization.riskRegister.pendingReview.dismiss")}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {risk.category}
-                  </span>
-                </div>
-                {canWrite && (
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(risk.id)}
-                      disabled={anyReviewActionInFlight}
-                      className="focus-ring flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      {t("organization.riskRegister.pendingReview.approve")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDismiss(risk.id)}
-                      disabled={anyReviewActionInFlight}
-                      className="focus-ring flex items-center gap-1 rounded-md border border-input bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      {t("organization.riskRegister.pendingReview.dismiss")}
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
+                  {hasEvidence && isExpanded && (
+                    <div className="mx-4 mb-2.5 rounded-md border border-amber-500/20 bg-card px-3 py-2 text-xs text-muted-foreground">
+                      {risk.description && <p>{risk.description}</p>}
+                      {risk.regulatory_citation_note && (
+                        <p className={risk.description ? "mt-1.5" : undefined}>
+                          <span className="font-medium text-foreground">
+                            {t(
+                              "organization.riskRegister.pendingReview.regulatoryCitationNote"
+                            )}
+                            :{" "}
+                          </span>
+                          {risk.regulatory_citation_note}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </>
       )}

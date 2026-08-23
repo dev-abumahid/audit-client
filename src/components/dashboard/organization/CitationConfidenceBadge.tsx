@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { useTranslation } from "react-i18next"
 import type { Risk } from "@/types/organization"
 
@@ -47,23 +48,38 @@ export default function CitationConfidenceBadge({
   size = "sm",
 }: CitationConfidenceBadgeProps) {
   const { t } = useTranslation()
+  const hintId = useId()
   if (!confidence) return null
   const style = STYLES[confidence]
   const sizeClasses =
     size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-xs"
+  const hint = t(
+    `organization.riskRegister.citationConfidence.${confidence}Hint`
+  )
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`}
-      // Round-1 UX finding: the badge alone ("AI estimate"/"Verified")
-      // didn't explain what a reviewer should actually do with that
-      // signal -- a native tooltip closes that gap without needing a new
-      // interactive disclosure.
-      title={t(
-        `organization.riskRegister.citationConfidence.${confidence}Hint`
-      )}
+    // Round-2 quality-bar-loop review finding: a native `title` tooltip is
+    // mouse-hover-only -- unreachable by keyboard and most screen readers,
+    // so the round-2 fix that added it was itself a (minor) new a11y gap
+    // despite being framed as a UX improvement. A plain `<button>` (not a
+    // `tabIndex`-hacked `<span>`, which eslint's jsx-a11y correctly rejects
+    // as non-interactive) is naturally focusable, with `aria-describedby`
+    // pointing at a visually-hidden span exposing the hint to AT on focus,
+    // not just mouse hover -- same WAI-ARIA tooltip-trigger pattern, just
+    // on a real interactive element. It does nothing on click (there's no
+    // disclosure to open) -- purely a focusable label, same shape as a
+    // plain "i" info-icon button elsewhere. `title` is kept too, so mouse
+    // users still get the native browser tooltip.
+    <button
+      type="button"
+      aria-describedby={hintId}
+      className={`focus-ring inline-flex items-center rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`}
+      title={hint}
     >
       {t(`organization.riskRegister.citationConfidence.${confidence}`)}
-    </span>
+      <span id={hintId} className="sr-only">
+        {hint}
+      </span>
+    </button>
   )
 }

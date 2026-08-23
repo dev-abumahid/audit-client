@@ -88,3 +88,51 @@ This single fix also directly addresses two OTHER open findings at the same time
 - Part of industry-standards' "no evidence" gap — while this fix doesn't add the full description/citation-note preview (a separate, likely Tier-2 UX fix for a later round), giving the confidence signal permanence across views is a genuine trust-model improvement in its own right.
 
 Deliberately NOT selected this round despite lower raw scores on other axes (industry-standards at 3/10 is the lowest overall, but its findings — evidence preview, select-all, bulk confirmation, dismissed-item restore — are all UX/interaction findings, not data-correctness, so they rank below this round's priority-1 pick per the loop's fixed selection order; they remain open for round 3+ selection based on `stuck_streak`).
+
+## Round 2 — fix shipped ([PR #1064](https://github.com/Qiyrix/aexa-frontend/pull/1064))
+
+Extracted `ConfidenceBadge` out of `PendingAiReviewPanel.tsx` into a new shared component `src/components/dashboard/organization/CitationConfidenceBadge.tsx`, wired it into `RiskDetails.tsx` and `RiskRegisterPage.tsx`'s main table row, and changed its color scheme from amber/emerald (collided with `SEVERITY_STYLES`) to violet/indigo. Added a `title` tooltip explaining each confidence level. Full review loop (2 rounds — round 1 caught a real high-severity bug: `response.choices[0].message.parsed` sat outside the LLM-call's try/except in a *different* PR that landed the same day, unrelated to this fix) came back clean; merged.
+
+Live-verified end-to-end before merge: approved a `curated_verified` seeded risk, confirmed the same "Vérifié" badge appeared in both the main register table and the risk detail page afterward — the exact failure mode round 1 found.
+
+## Round 2 (post-fix judge panel)
+
+| Axis | Score | vs. Round 1 |
+|---|---|---|
+| Industry-standards conformance | 3/10 | unchanged |
+| UX | 6/10 | unchanged |
+| Efficiency | 7/10 | unchanged |
+| Accessibility (a11y) | 5/10 | **regressed (-1, still below floor both rounds)** |
+| Visual/design polish | 7/10 | +1 |
+| Resilience & edge cases | 7/10 | unchanged |
+| Code quality/maintainability | 9/10 | +1 |
+| Cross-view integration | 9/10 | **+5, now well above floor** |
+| Security | 9/10 | unchanged |
+| **Average** | **6.89/10** | +0.67 |
+
+Below floor (6.5): industry-standards (3), accessibility (5).
+
+### Findings summary (verbatim, lightly trimmed) — only axes with new/changed findings
+
+**Cross-view integration (9/10, was 4):** Fix confirmed working end-to-end live — approved a seeded `curated_verified` risk, the same "Verified" violet badge now renders in the main table's SOURCE column and the detail page header, closing the exact gap round 1 found. Capability-regression check passed: `CONFIDENCE_RANK` sort and the badge's null-guard behave identically to the pre-extraction version. One finding remains open, unaddressed by this round's fix (correctly out of scope): `risk.category` still renders as bare uncolored text in this panel while every other view uses the colored-badge convention. [cosmetic-convention, contained]
+
+**Accessibility (5/10, was 6 — genuine regression, not just re-confirmation):** The two round-1 findings (blanket `aria-live="polite"` region, no semantic heading/landmark) are unchanged. NEW: the round-2 fix's `title`-attribute tooltip (added to close a UX gap) has `tabIndex=-1`, no `role`, no `aria-describedby` — native `title` tooltips are mouse-hover-only, so this "accessibility-adjacent" addition is actually unreachable by keyboard or most screen readers, a real if minor new gap. Contrast on the new violet/indigo palette still clears WCAG AA (≈5.2-7.0:1) but with less margin than the old emerald/amber (≈8.4-9.4:1). [broken-functionality for a11y purposes, contained — one attribute away from fixed]
+
+**Industry-standards, UX, efficiency, resilience, security:** all findings re-confirmed live as unchanged from round 1 (see round 1's findings above); no new issues, no regressions.
+
+**Code quality (9/10, was 8):** The extraction itself is clean — `CitationConfidenceBadge`'s `STYLES` map is keyed by `NonNullable<Risk["citation_confidence"]>`, giving a compile error if the enum grows without a matching style (an exhaustiveness guard the old inline map never had). `CONFIDENCE_RANK` stays correctly panel-local (sort order is only meaningful here). The old duplicated selection-clearing block (round-1 minor finding) is untouched, still present.
+
+### stuck_streak (computed after this round)
+
+- industry-standards: 3 → 3, unchanged, below floor both rounds → **streak = 1**
+- UX: 6 → 6, unchanged, below floor both rounds → **streak = 1**
+- accessibility: 6 → 5, changed (regressed), below floor both rounds → **streak = 0** (streak requires "unchanged"; a regression resets it even though still below floor — logged as a regression instead, see selection rationale)
+- visual, cross-view: exited the below-floor set this round (7 and 9 respectively, both ≥ floor)
+
+### Next fix (Round 3)
+
+**Selected: (1) add an evidence-preview affordance for pending risks (surface `risk.description`/`risk.regulatory_citation_note`, the "why did the AI suggest this" fields that already exist on every risk but were never rendered anywhere in this panel), batched with (2) a cheap, isolated a11y fix making `CitationConfidenceBadge`'s tooltip keyboard/screen-reader reachable (`aria-describedby` + a visually-hidden description, or an equivalent accessible-tooltip pattern) — the round-2 regression found this round.**
+
+Selection rationale (step 5c priority order): industry-standards (3/10) and UX (6/10) are tied at `stuck_streak = 1`; tie-broken by lowest raw score → industry-standards wins. Of its four open findings (evidence preview, no select-all, no bulk confirmation, dismissed-items not restorable), the evidence-preview gap is the judge's own stated "crux of this axis" and is genuinely `contained` — `description`/`regulatory_citation_note` already exist on the `Risk` type/API response, this is a pure rendering gap, same class of fix as round 2's. "Dismissed-items not restorable" is `large-scope` (no restore/undo mutation exists anywhere in the backend — would need a new endpoint) and is excluded from this round's selection. Select-all and bulk-confirmation are both `contained` but touch the exact same file/interaction surface as each other and are deferred to a future round rather than tripling this round's scope.
+
+Batched the a11y tooltip-reachability fix alongside it per the loop's batching rule: both are Tier 1/2, and their touched files are disjoint (`PendingAiReviewPanel.tsx`/test vs. `CitationConfidenceBadge.tsx`/test) — no merge-conflict risk from combining them into one PR.

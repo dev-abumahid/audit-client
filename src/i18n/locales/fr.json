@@ -1287,7 +1287,8 @@
         "dismissedButReferenced_one": "Rejeté, mais encore lié à {{count}} autre élément — vous voudrez peut-être le vérifier.",
         "dismissedButReferenced_other": "Rejeté, mais encore lié à {{count}} autres éléments — vous voudrez peut-être les vérifier.",
         "showDismissed": "Afficher les risques rejetés",
-        "noDismissed": "Aucun risque rejeté."
+        "noDismissed": "Aucun risque rejeté.",
+        "regulatoryCitationNote": "Citation réglementaire"
       },
       "colName": "NOM",
       "colSite": "SITE",

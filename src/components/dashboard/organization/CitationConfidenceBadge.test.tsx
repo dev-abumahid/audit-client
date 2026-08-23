@@ -64,11 +64,48 @@ describe("CitationConfidenceBadge", () => {
     const { container: estimate } = render(
       <CitationConfidenceBadge confidence="ai_estimate" />
     )
-    expect(verified.querySelector("span")?.className).not.toMatch(
+    expect(verified.querySelector("button")?.className).not.toMatch(
       /emerald|amber/
     )
-    expect(estimate.querySelector("span")?.className).not.toMatch(
+    expect(estimate.querySelector("button")?.className).not.toMatch(
       /emerald|amber/
     )
+  })
+
+  // Round-2 quality-bar-loop review finding: the native `title` tooltip
+  // added to explain each confidence level is mouse-hover-only --
+  // unreachable by keyboard and most screen readers. Regression-guards the
+  // fix: the badge must be a real focusable interactive element (a
+  // <button>, naturally focusable and tab-orderable -- not a
+  // tabIndex-hacked <span>, which eslint's jsx-a11y correctly rejects as
+  // non-interactive) and its hint text must be exposed to assistive tech
+  // via aria-describedby, not just the title attribute.
+  it("is a real focusable button and exposes its hint via aria-describedby", () => {
+    const { container } = render(
+      <CitationConfidenceBadge confidence="ai_estimate" />
+    )
+    const badge = container.querySelector("button")
+    expect(badge).toHaveAttribute("type", "button")
+
+    const describedById = badge?.getAttribute("aria-describedby")
+    expect(describedById).toBeTruthy()
+
+    const description = container.querySelector(`#${describedById}`)
+    expect(description).toHaveTextContent(
+      "organization.riskRegister.citationConfidence.ai_estimateHint"
+    )
+    expect(description).toHaveClass("sr-only")
+  })
+
+  it("uses a unique aria-describedby id per instance (no collision when multiple badges render)", () => {
+    render(
+      <>
+        <CitationConfidenceBadge confidence="curated_verified" />
+        <CitationConfidenceBadge confidence="ai_estimate" />
+      </>
+    )
+    const badges = screen.getAllByTitle(/citationConfidence/)
+    const ids = badges.map((b) => b.getAttribute("aria-describedby"))
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })
