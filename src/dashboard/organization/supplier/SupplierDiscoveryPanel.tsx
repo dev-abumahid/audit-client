@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { CircleCheck, Loader2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import type { SuggestedSupplier } from "@/redux/apis/organization/supplier.api"
 import {
@@ -173,9 +174,9 @@ export default function SupplierDiscoveryPanel({
                             {candidate.supplier_name}
                           </span>
                           {candidate.supplier_country && (
-                            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            <Badge variant="secondary" size="xs">
                               {candidate.supplier_country}
-                            </span>
+                            </Badge>
                           )}
                         </div>
                         {candidate.relationship && (

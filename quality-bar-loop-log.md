@@ -1773,3 +1773,224 @@ Deferred: industry-standards' remaining structural gap (dedicated
 view/export/shareable filter state) -- real, large-scope, the likely reason
 this axis's ceiling isn't 10 even after this round. UX's scannability
 tradeoff. (b) trend/export and (c) kanban-vs-matrix layout unchanged.
+
+---
+
+# Quality Bar Loop — Supplier page/feature (`/organization/suppliers`)
+
+Target: average >= 9/10, every axis >= 7/10 floor. No max-round cap.
+Active judges: industry-standards, UX, efficiency, accessibility, visual polish,
+resilience & edge cases, code quality, cross-view integration, mobile/responsive,
+security (mobile and security both confirmed relevant by the user at Setup).
+Merge authorization: auto-merge for the rest of this loop.
+Source: SuppliersEntities.tsx, SupplierDiscoveryPanel.tsx, SupplierFormModal.tsx,
+supplier.api.ts (net-new feature, single commit 71eeb14, PR #1062).
+
+## Round 1 (baseline)
+
+| Axis | Score |
+|---|---|
+| Industry-standards | 4/10 |
+| UX | 7/10 |
+| Efficiency | 8/10 |
+| Accessibility | 7/10 |
+| Visual/design polish | 6/10 |
+| Resilience & edge cases | 7/10 |
+| Code quality/maintainability | 8/10 |
+| Cross-view integration | 4/10 |
+| Mobile/responsive | 6/10 |
+| Security | 8/10 |
+
+**Average: 6.5/10** — not converged. Below floor (7): industry-standards (4),
+visual polish (6), cross-view integration (4), mobile/responsive (6).
+
+### Environment note (not a scored finding)
+Most live-testing judges hit `GET/POST /api/supplier -> 404`. Root cause:
+the long-running local aexa-server process (port 5000) was on a stale
+unrelated branch (`feat/password-security-hardening`) that predates the
+supplier feature entirely -- a leftover from earlier session work, not an
+app defect. Restarted the server from the `ai-suggest-risk-fields-server`
+worktree on current `main` (confirmed via `npx prisma migrate deploy`,
+already up to date) before round 2 -- `/api/supplier` now correctly
+returns 401 (auth-gated) instead of 404. Judges' non-live-verified findings
+in round 1 were still trusted where grounded in direct code reading.
+
+### Judge-conflict resolution (not a scored finding)
+UX's judge flagged a possible focus-trap leak in the Add/Edit Supplier
+modal based on `read_page` still listing background nav/buttons as
+"interactive" while the modal was open. Accessibility's judge, reading the
+same `useModalA11y` hook's code, scored the trap as solid and
+already-hardened from a prior round's fix. Verified live myself: opened
+the modal, pressed Tab 14 times in a row, `document.activeElement` stayed
+inside `[role="dialog"]` the entire time -- the trap holds. `read_page`
+lists DOM elements with click handlers regardless of actual tab-reachability
+(tabindex/inert state), so it's not a reliable signal for this check.
+UX's finding is disproven and excluded from the fix pool; Accessibility's
+finding stands.
+
+### Judge findings
+
+**Industry-standards (4/10):**
+- Supplier record schema (`name`, `country`, `notes` only) is far thinner
+  than any comparable vendor-risk tool (Vanta/Drata/OneTrust all track risk
+  tier, review/reassessment date, contract status, primary contact) --
+  `SupplierFormState` SupplierFormModal.tsx:6-11, `SupplierFormPayload`
+  supplier.api.ts:15-21.
+- No sorting, filtering, or bulk actions -- a plain `<ul>` of rows
+  (SuppliersEntities.tsx:175), not a data grid; edit/delete only ever act
+  on one supplier at a time.
+- AI discovery is a single undifferentiated sweep with no scope/domain
+  input (`discoverSuppliers` supplier.api.ts:86-95, called with zero args
+  in SupplierDiscoveryPanel.tsx:47-68) and there's no bulk-import path at
+  all, despite bulk import being the standard fastest vendor-onboarding
+  method in comparable tools.
+- Positive: the accept/dismiss review pattern for AI candidates, with
+  server-verified `source_url` grounding, mirrors a legitimate pattern
+  from Drata/Vanta's auto-discovered-vendor review flow and is more
+  rigorous provenance-tracking than several real GRC tools offer.
+- No status/lifecycle field (active/inactive, under-review/approved) means
+  the list can only answer "who is a supplier," not "which suppliers need
+  attention" -- the actual job of a vendor list in a GRC product.
+
+**UX (7/10):**
+- Clean failure handling: form submission against a broken backend kept
+  the modal open with typed data intact rather than clearing/losing it
+  (SuppliersEntities.tsx:102-110).
+- Button labels unambiguous throughout; destructive delete goes through a
+  confirm modal (SuppliersEntities.tsx:257-266).
+- No duplicate protection between AI-discovery and manual-add lanes --
+  `acceptCandidate` (SupplierDiscoveryPanel.tsx:70-85) never checks
+  against the already-loaded list, and per-candidate "added" status is
+  session-only/index-keyed, so revisiting the page re-offers an
+  already-accepted candidate with nothing stopping a second Add from
+  duplicating it.
+- No bulk-accept for discovery results -- each AI candidate must be added
+  one click at a time (SupplierDiscoveryPanel.tsx:202-222).
+- Focus-trap claim -- disproven live, see conflict-resolution note above.
+
+**Efficiency (8/10):**
+- Search properly debounced at 300ms (SuppliersEntities.tsx:37) feeding
+  server-side pagination/search (PAGE_SIZE=20, supplier.api.ts:46-55) --
+  no per-keystroke calls, no client-side over-fetch-then-filter.
+- RTK Query cache tags correctly wired: `getAllSuppliers` provides
+  `SUPPLIER`, all 3 mutations invalidate it (supplier.api.ts:54,62,73,80).
+- AI discovery is a one-shot mutation with a static skeleton, not a
+  polling loop -- no blocking/janky behavior.
+- Minor, inert at this scale: zero memoization anywhere (inline arrow
+  functions per row, SuppliersEntities.tsx:208,218;
+  `usableCandidates`/`visibleCandidates` recomputed unmemoized every
+  render, SupplierDiscoveryPanel.tsx:91-96).
+
+**Accessibility (7/10):**
+- Modal focus trap is solid, code-verified via shared `useModalA11y` hook
+  (already hardened against a prior tabindex="-1" bug) -- confirmed live
+  this round, see conflict-resolution note.
+- Real `<ul>`/`<li>` list semantics, not div-soup; icon-only buttons have
+  supplier-name-interpolated `aria-label`s; form inputs properly
+  associated via htmlFor/id; AI-discovered content is not color-only
+  (visible text pill + `aria-live="polite"` region).
+- Contrast bug, confirmed by the codebase's own documented measurements:
+  the country pill (`bg-muted text-muted-foreground`, SuppliersEntities.tsx:187-189
+  and SupplierDiscoveryPanel.tsx:176-178) uses a token index.css:110-116
+  already measured at 4.36-4.48:1, under WCAG AA's 4.5:1 floor for
+  normal-size (10px) text. The "AI-discovered" pill's `text-primary` on
+  `bg-primary/10` contrast was never verified either.
+- No drag-only interactions -- satisfies WCAG 2.5.7 trivially.
+
+**Visual/design polish (6/10):**
+- Pill/badge treatment under-differentiates two different signals
+  (provenance vs. location) as near-identical low-emphasis grey/tinted
+  10px chips, versus the Risk Register page's richer per-category
+  saturated-color coding for the same "categorical metadata" problem.
+- No summary/stats strip unlike the sibling Sites & Entities page (4 stat
+  cards + icon avatars + source badges there vs. plain flex rows here).
+- Card background/border contrast is internally consistent but very
+  subtle in dark mode (~7-8 RGB-channel steps between body/card/border).
+- The form modal is the strongest piece of craft in this feature --
+  correct typography hierarchy, clean primary/secondary button
+  distinction, consistent with modal conventions elsewhere in the app.
+
+**Resilience & edge cases (7/10):**
+- Error state renders clearly (`role="alert"`, SuppliersEntities.tsx:166-169)
+  but has no retry/reload affordance -- only recourse is a full page
+  refresh.
+- Inconsistent loading-state UX: main list uses a bare centered spinner
+  causing layout jump (SuppliersEntities.tsx:162-165) vs. the discovery
+  panel's proper row-shaped skeleton with `aria-live` (SupplierDiscoveryPanel.tsx:137-147).
+- Malformed/missing field handling is solid -- `?? ""` coalescing on
+  edit-open, conditional rendering on truthy values only.
+- Narrow double-submission race on Save (`isSaving` guard only reflects
+  after a re-render, no synchronous ref guard, SuppliersEntities.tsx:253);
+  separately, the discovery panel's `isAdding` guard is a single shared
+  state across ALL candidate rows, disabling every row's Add button when
+  any one is in flight, with no per-row loading indicator distinguishing
+  which one.
+
+**Code quality/maintainability (8/10):**
+- Well-decomposed relative to the codebase's own precedent -- contrasts
+  favorably with SitesEntities.tsx's 2000+-line single-component pattern.
+- Precise typing throughout, no `any`; `SupplierFormPayload`/`SuggestedSupplier`
+  fully typed including deliberate nullability.
+- One duplication smell: the create-payload-building shape is written
+  twice near-identically (SuppliersEntities.tsx:88-92 and
+  SupplierDiscoveryPanel.tsx:73-79) -- not yet a 3+ repetition, but a
+  third caller should trigger extracting a shared helper.
+- High-value, non-stale comments explaining real invariants (grounding
+  guarantee, aexa-ai#227 reference).
+- Test gap: `SupplierFormModal`'s backdrop-click-to-close and
+  `useModalA11y` focus-trap/Escape behavior are untested.
+
+**Cross-view integration (4/10):**
+- No supplier<->risk linkage anywhere in the type system -- `Risk` and
+  `RiskLink` (organization.d.ts:105,270) carry no `supplier_id`; supply-chain
+  risks reference suppliers only as free text in `name`/`description`, so
+  neither page can deep-link to the other, in either direction.
+- Sites & Entities page (`/organization/sites`) has zero visibility into
+  suppliers -- no count, no list, no link out -- despite
+  SuppliersEntities.tsx:23-24's own comment explicitly framing suppliers
+  as "an optional org-scoped input alongside Sites."
+- A shared `Badge` component (`src/components/ui/badge.tsx`, landed 3 days
+  before this feature specifically to stop hand-rolled pill markup) is not
+  used by either pill in this feature -- both are hand-rolled duplicates
+  of `Badge variant="secondary" size="xs"` and `variant="primary"`
+  respectively (SuppliersEntities.tsx:186-196, duplicated in
+  SupplierDiscoveryPanel.tsx:176-179).
+- No capability regression to report -- single-commit net-new feature,
+  nothing prior to regress against.
+- Positive: the discovery panel's "review and selectively import" shape
+  deliberately mirrors RegulatoryCoverageSuggestions.tsx's established
+  pattern (SupplierDiscoveryPanel.tsx:16-29) -- good cross-feature UX
+  consistency where it mattered.
+
+**Mobile/responsive (6/10):**
+- Form modal adapts correctly -- proper stacked mobile layout at 375px,
+  no horizontal scroll, 44px touch targets on inputs/close button.
+- Row edit/delete buttons are 36x36px (SuppliersEntities.tsx:212,222),
+  under the 44px HIG minimum, no larger mobile variant.
+- No hover-trap bug -- action buttons render unconditionally, not
+  gated behind desktop-only `:hover` opacity (a genuine plus).
+- Discovery panel's Add/Dismiss buttons are ~22-24px tall
+  (SupplierDiscoveryPanel.tsx:212,233), well under 44px -- these are the
+  primary interaction for the AI-review flow, the same touch-heavy list
+  pattern this axis specifically watches for.
+
+**Security (8/10):**
+- Zero `dangerouslySetInnerHTML` sinks across all 4 files -- all rendering
+  is plain JSX interpolation, React-escaped by default. Live-tested
+  `<img src=x onerror=alert(1)>` and `javascript:alert(1)` payloads into
+  the form; raw payload POSTed unmodified (no client-side sanitization,
+  correctly deferring to server-side validation) but the 404 backend at
+  test time prevented confirming the final rendered/stored output --
+  should re-verify now that the server's on main.
+- AI-sourced `source_url` is treated MORE cautiously than manual input,
+  not less -- gated behind `isHttpUrl()` before ever becoming an `href`
+  (SupplierDiscoveryPanel.tsx:186), rejecting `javascript:`/`data:` schemes.
+- Client-side validation is minimal by design (only `name` required,
+  SupplierFormModal.tsx:136) with server-side Zod schemas doing real
+  enforcement per a code comment -- not independently verified from the
+  frontend.
+- No `maxLength` on notes/name inputs -- minor data-quality/DoS
+  concern, easy defense-in-depth addition.
+- Org-scoping cannot be confirmed from the frontend alone -- no explicit
+  org_id in any supplier.api.ts call; presumably session/JWT-derived
+  server-side, consistent with other modules, unverified from here.

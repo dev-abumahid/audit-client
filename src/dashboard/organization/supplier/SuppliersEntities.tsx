@@ -4,6 +4,7 @@ import { Loader2, Pencil, Plus, Sparkles, Trash2, Truck } from "lucide-react"
 import { toast } from "sonner"
 import DeleteAlertModal from "@/components/shared/DeleteAlertModal"
 import Pagination from "@/components/shared/Pagination"
+import { Badge } from "@/components/ui/badge"
 import { useClampPageToTotal } from "@/hooks/useClampPageToTotal"
 import { useDebouncedValue } from "@/hooks/Usedebouncedvalue"
 import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
@@ -184,15 +185,15 @@ export default function SuppliersEntities() {
                       {supplier.name}
                     </span>
                     {supplier.country && (
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <Badge variant="secondary" size="xs">
                         {supplier.country}
-                      </span>
+                      </Badge>
                     )}
                     {supplier.ai_generated && (
-                      <span className="flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      <Badge variant="primary" size="xs">
                         <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
                         {t("organization.suppliers.aiDiscovered")}
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   {supplier.notes && (
