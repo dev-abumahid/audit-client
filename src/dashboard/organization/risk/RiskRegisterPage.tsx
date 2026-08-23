@@ -22,6 +22,7 @@ import RiskApprovalControls from "./RiskApprovalControls"
 import RiskFormModal from "./RiskFormModal"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import {
+  Anchor,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -315,6 +316,24 @@ const RiskRow = memo(function RiskRow({
           <span className="flex items-center gap-1">
             <Bot className="h-3 w-3 shrink-0" />
             {t("organization.riskRegister.aiGenerated")}
+            {/* source_type only carries real meaning for AI-generated
+                risks -- see organization.d.ts's Risk.source_type comment.
+                Compact icon-only indicator here (row is already dense);
+                the full "Anchored"/"Estimated" badge with citation lives
+                on RiskDetails.tsx. */}
+            {risk.source_type === "anchored" && (
+              <span
+                title={
+                  risk.source_reference
+                    ? t("organization.riskRegister.anchoredTooltip", {
+                        reference: risk.source_reference,
+                      })
+                    : t("organization.riskRegister.anchoredBadge")
+                }
+              >
+                <Anchor className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              </span>
+            )}
           </span>
         ) : (
           t("organization.riskRegister.manual")

@@ -12,6 +12,7 @@ import {
 } from "@/utils/lineOfDefense"
 import {
   AlertCircle,
+  Anchor,
   Bot,
   Building2,
   ChevronLeft,
@@ -176,6 +177,33 @@ export default function RiskDetails() {
                   {t("organization.riskRegister.manual")}
                 </span>
               )}
+              {/* source_type/source_reference only carry real meaning for
+                  AI-generated risks -- every manually created row (and
+                  every pre-existing row) defaults to "estimated" in the
+                  DB, so showing this badge there would be noise, not
+                  signal. See organization.d.ts's Risk.source_type comment. */}
+              {risk.ai_generated && risk.source_type === "anchored" ? (
+                <span
+                  className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
+                  title={
+                    risk.source_reference
+                      ? t("organization.riskRegister.anchoredTooltip", {
+                          reference: risk.source_reference,
+                        })
+                      : t("organization.riskRegister.anchoredBadge")
+                  }
+                >
+                  <Anchor className="h-3 w-3 shrink-0" />
+                  {t("organization.riskRegister.anchoredBadge")}
+                </span>
+              ) : risk.ai_generated ? (
+                <span
+                  className="text-[10px] text-muted-foreground"
+                  title={t("organization.riskRegister.estimatedTooltip")}
+                >
+                  {t("organization.riskRegister.estimatedBadge")}
+                </span>
+              ) : null}
             </div>
             <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-foreground">
               {risk.name}

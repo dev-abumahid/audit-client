@@ -194,6 +194,17 @@ export interface Risk {
   // pre-existing row default to APPROVED; AI-generated risks start
   // PENDING_REVIEW.
   review_status: "APPROVED" | "PENDING_REVIEW" | "DISMISSED"
+  // External-data-anchoring plan (aexa-server PR #382): whether this risk
+  // is grounded in real external data (SEC EDGAR financials, World Bank
+  // governance indicators, GDELT news coverage, Shodan vulnerability data,
+  // EPA ECHO violations, Georisques risk-prevention data, etc.) vs a pure
+  // LLM estimate. source_reference is the human-readable citation for an
+  // anchored risk (e.g. "GDELT: 3+ negative-coverage articles..."), null
+  // for an estimated risk or a manually created one. Returned as-is by
+  // GET /risk (see risk.service.ts) -- default is "estimated" for every
+  // pre-existing row.
+  source_type: "anchored" | "estimated" | null
+  source_reference: string | null
 }
 
 // Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's

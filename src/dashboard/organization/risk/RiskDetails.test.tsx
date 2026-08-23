@@ -141,6 +141,110 @@ describe("RiskDetails", () => {
     ).toBeInTheDocument()
   })
 
+  it("shows an Anchored badge with the citation as a tooltip for an AI-generated, anchored risk", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "anchored",
+          source_reference: "GDELT: 3+ negative-coverage articles",
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText(
+      "organization.riskRegister.anchoredBadge"
+    )
+    expect(badge).toBeInTheDocument()
+    expect(badge.closest("span")).toHaveAttribute(
+      "title",
+      "organization.riskRegister.anchoredTooltip"
+    )
+  })
+
+  it("falls back to the plain Anchored label as the tooltip when source_reference is null", () => {
+    // Round-1 review found this component and RiskRegisterPage.tsx
+    // handled a null source_reference on an "anchored" risk differently
+    // (this one previously rendered no tooltip at all; the register
+    // table's icon fell back to the badge label). The backend should
+    // never actually send this combination, but the type permits it --
+    // aligned to RiskRegisterPage.tsx's existing, more useful fallback.
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "anchored",
+          source_reference: null,
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText(
+      "organization.riskRegister.anchoredBadge"
+    )
+    expect(badge.closest("span")).toHaveAttribute(
+      "title",
+      "organization.riskRegister.anchoredBadge"
+    )
+  })
+
+  it("shows an Estimated indicator (not Anchored) for an AI-generated, estimated risk", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "estimated",
+          source_reference: null,
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText("organization.riskRegister.estimatedBadge")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.anchoredBadge")
+    ).not.toBeInTheDocument()
+  })
+
+  it("does not show an Anchored or Estimated indicator for a manually created risk", () => {
+    // Regression: source_type defaults to "estimated" in the DB for every
+    // row including manually created ones -- this indicator must only
+    // ever appear for AI-generated risks, or it would misleadingly imply
+    // every manual risk is a low-confidence "estimate". Uses
+    // source_type: "anchored" (not the more common "estimated") so the
+    // test actually exercises the ai_generated gate itself, rather than
+    // passing vacuously because source_type already isn't "anchored".
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: false,
+          source_type: "anchored",
+          source_reference: "GDELT: 3+ negative-coverage articles",
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.queryByText("organization.riskRegister.anchoredBadge")
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("organization.riskRegister.estimatedBadge")
+    ).not.toBeInTheDocument()
+  })
+
   it("renders both inherent and residual scores", () => {
     mockUseGetSingleRiskQuery.mockReturnValue({
       data: { data: makeRisk() },

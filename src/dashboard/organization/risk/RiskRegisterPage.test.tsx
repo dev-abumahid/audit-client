@@ -250,6 +250,59 @@ describe("RiskRegisterPage", () => {
     expect(screen.queryByText("Risks found")).not.toBeInTheDocument()
   })
 
+  it("shows an anchor icon with the citation as a tooltip for an AI-generated, anchored risk", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            ai_generated: true,
+            source_type: "anchored",
+            source_reference: "GDELT: 3+ negative-coverage articles",
+          }),
+        ],
+      },
+    })
+
+    renderPage()
+
+    const icon = document.querySelector(".lucide-anchor")
+    expect(icon).toBeInTheDocument()
+    expect(icon?.closest("span")).toHaveAttribute(
+      "title",
+      "organization.riskRegister.anchoredTooltip"
+    )
+  })
+
+  it("does not show an anchor icon for an estimated risk or a manually created risk", () => {
+    // Regression: source_type defaults to "estimated" for every row
+    // including manually created ones -- the icon must only ever appear
+    // for an AI-generated risk actually anchored to external data, not
+    // merely because source_type happens to be "anchored" on some other
+    // row shape.
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            id: "estimated-risk",
+            ai_generated: true,
+            source_type: "estimated",
+            source_reference: null,
+          }),
+          makeRisk({
+            id: "manual-anchored-risk",
+            ai_generated: false,
+            source_type: "anchored",
+            source_reference: "GDELT: 3+ negative-coverage articles",
+          }),
+        ],
+      },
+    })
+
+    renderPage()
+
+    expect(document.querySelector(".lucide-anchor")).not.toBeInTheDocument()
+  })
+
   it("renders the plural subtitle for multiple visible risks", () => {
     mockUseGetAllRisksQuery.mockReturnValue({
       data: { data: [makeRisk(), makeRisk({ id: "risk-2" })] },
