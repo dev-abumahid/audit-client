@@ -205,3 +205,60 @@ One review round (Tier 2, capped per `ship-with-review-loop`'s own guidance): 2 
 2. **Fixed**: the dialog could leak "open" in state across the panel's empty-state early return (list empties while dialog is up → early-return branch unmounts the modal without resetting `pendingBulkAction` → a later non-empty render reopens it unprompted against a stale selection). Fixed by resetting the state during render (not an effect, per `react-hooks/set-state-in-effect`) when the pending count transitions to zero. Added a regression test with a negative control confirming it genuinely catches the bug.
 
 Live-verified end-to-end before merge, against real seeded data (not mocks): selected 2 real pending risks → "Approve all" → dialog opened with correct pluralized copy → confirmed → real `POST /api/risk/bulk-approve` fired, both flipped to `APPROVED` in Postgres. Separately verified Dismiss-all → Cancel → no mutation fires, all 3 risks stayed `PENDING_REVIEW`, selection stayed checked.
+
+## Round 5 (post-fix judge panel)
+
+| Axis | Score | vs. Round 4 |
+|---|---|---|
+| Industry-standards conformance | 8/10 | +2, **floor cleared** |
+| UX | 8/10 | +1 |
+| Efficiency | 8/10 | unchanged |
+| Accessibility (a11y) | 7.5/10 | unchanged |
+| Visual/design polish | 7/10 | unchanged |
+| Resilience & edge cases | 8/10 | unchanged |
+| Code quality/maintainability | 8/10 | unchanged |
+| Cross-view integration | 8/10 | **-1, regressed (stayed above floor)** |
+| Security | 9/10 | unchanged |
+| **Average** | **7.94/10** | +0.22 |
+
+No axis below floor (6.5) — all 9 axes now at or above floor for the first time this loop. Not yet converged (average still below 8.5 target).
+
+### Findings summary (verbatim, lightly trimmed) — only axes with new/changed findings
+
+**Industry-standards (8/10, was 6):** Confirmation gate fully verified live via network trace — Cancel produces zero mutation requests, confirming fires the real `POST /api/risk/bulk-approve`/`bulk-dismiss`. Approve/Dismiss dialogs correctly differentiated (different titles/descriptions/confirm labels, not a generic "are you sure"). Select-all remains genuinely absent (per-row checkboxes only) — correctly left open, out of round 4's scope. New minor gap noted (not floor-relevant): no bulk-undo affordance after a confirmed action, a next-round candidate alongside select-all.
+
+**UX (8/10, was 7):** Dialog copy is clear and count-aware, Cancel is clean with zero side effects, confirming gives prompt visible feedback via list re-render. Two new findings: no explicit success toast on the happy path (only `toast.error` exists, no `toast.success`); **the reused `DeleteAlertModal` mis-signals for "Approve"** — red `destructive`-styled icon and confirm button on what should read as a safe, additive action, independently confirmed by the visual judge below.
+
+**Visual (7/10, unchanged):** Confirmed the same destructive-red styling mismatch — screenshotted and zoomed both themes, the "Approve all" confirm button is genuinely red, not just tinted, for a constructive action. `DeleteAlertModal.tsx`'s icon/button color aren't caller-configurable, so this caller had no way to differentiate without touching the shared component. Two round-2/3 findings still open, unchanged: no `title` tooltip on truncated names, no row-level visual hierarchy by confidence.
+
+**Cross-view integration (8/10, was 9 — new regression, stayed above floor):** No capability regression, category-badge gap still open and correctly out of round 4's scope. **New finding**: round 4's `DeleteAlertModal` usage sets `confirmLabel` but not `loadingLabel`, so during the actual mutation the button falls back to the shared default "Deleting..." even though the action is Approve/Dismiss — the exact "trust/comprehension gap" class of bug `DeleteAlertModal.tsx`'s own round-11 precedent (the `AlertsPage.tsx` Dismiss flow) already solved by setting a matching `loadingLabel`, just not fully applied to this new caller.
+
+**Resilience (8/10, unchanged):** The round-4 dialog-leak fix was verified against a **genuine live occurrence**, not a simulation — a concurrent judge session actually mutated the shared backend mid-test, pending count dropped 3→1 while the dialog was open, and it held up cleanly (no stuck/reopened dialog). Confirmed the failure path keeps the dialog open with cleared loading state on a rejected mutation (doesn't silently vanish). New finding: no `isError` handling on the initial `useGetAllRisksQuery` fetch — a failed load silently renders as "no risks pending," indistinguishable from a genuinely empty queue.
+
+**Code quality (8/10, unchanged):** The `pendingBulkAction === "approve" ? ... : ...` ternary repeated 4 times is readable but a small lookup-object would be cleaner (not selected as a real finding, judge's own call). The render-time `prevPendingCount` pattern is correctly applied and commented; still "least obvious pattern in the file" for a newcomer unfamiliar with React's adjust-during-render idiom, comment mitigates but doesn't eliminate that. Comment density held flat this round (new comments judged load-bearing, not bloat) — round-3's comment-bloat finding didn't get worse.
+
+**Efficiency (8/10), Security (9/10):** Both reconfirmed unchanged; efficiency confirmed the new render-time state pattern is O(1) and doesn't cause extra recompute; security confirmed the confirm dialog is a pure client-side UX gate with zero bearing on server-side authorization, no new injection surface.
+
+**Accessibility (7.5/10, unchanged):** Round 4's dialog reuses `DeleteAlertModal`'s existing, real accessibility investment — live-verified autofocus onto Cancel, correct keyboard trap (Tab cycles only the two dialog buttons), Escape closes cleanly without firing the mutation and restores focus to the trigger, correct `role="alertdialog"`. The two round-3 panel-level findings (blanket `aria-live="polite"`, evidence-toggle missing `aria-controls`) remain untouched and still cap the score.
+
+### stuck_streak (computed after this round)
+
+No axis is at or below floor this round — the below-floor set is now empty for the first time in this loop. No streaks to track.
+
+### Next fix (Round 6)
+
+**Selected: give the bulk-approve confirmation dialog a non-destructive visual treatment, batched with setting the correct `loadingLabel` on both the approve and dismiss dialogs.**
+
+Selection rationale (step 5c priority order): no data-correctness/security finding at/below floor (priority 1 empty, and for the first time no axis is below floor at all). No axis has stuck_streak > 0 (priority 2's primary criterion trivially ties at 0 everywhere), so priority 2's tie-break applies — lowest raw score — which is visual/design polish (7/10), the sole lowest-scoring axis this round. Of its findings, the destructive-red-styling-on-Approve mismatch is selected over the two older tooltip/row-hierarchy gaps because it's the freshest finding, independently confirmed by two separate judges (visual AND UX) in the same round, and because DeleteAlertModal's icon/button color isn't currently caller-configurable — closing it requires a small, contained prop addition to the shared component (e.g. a `variant` prop) rather than a purely single-file CSS tweak, making it worth doing before more callers accumulate on the destructive-only default.
+
+Batched alongside: cross-view integration's `loadingLabel` gap (regressed this round, stayed above floor — priority 3, ranks below priority 2's pick on its own, but shares the exact same JSX call site being touched for the variant fix, so fixing both in the same pass is lower-risk than two separate rounds editing the same lines). Both are Tier 1/2 changes to the same call site in `PendingAiReviewPanel.tsx` plus the shared `DeleteAlertModal.tsx` — not a same-file conflict since they're not competing for different outcomes on the same lines, just two small additions to the same call.
+
+Deliberately not selected: visual's two older findings (truncated-name tooltip, row-hierarchy) — still open, next round's candidates if visual doesn't clear via this round's fix alone; UX's missing-success-toast finding — minor, same-file, good candidate to batch next round; industry-standards' select-all and bulk-undo gaps — both `contained` but a larger single addition, deferred; resilience's missing `isError` handling on initial fetch — real but touches a different code path (the query hook itself, not the dialog), deferred to avoid conflating two unrelated fixes.
+
+## Round 6 — fix shipped ([PR #1068](https://github.com/Qiyrix/aexa-frontend/pull/1068))
+
+Added an optional `variant?: "destructive" | "default"` prop to the shared `DeleteAlertModal.tsx` (default `"destructive"`, so all 13 other existing callers are unaffected — reviewed and confirmed). `"default"` swaps `AlertCircle`/`bg-destructive` for `CheckCircle2`/`bg-emerald-600`, reusing the same emerald already used by this panel's own individual per-row Approve button (not a new color introduced). Wired the pending-AI-review panel's Approve-all dialog to `variant="default"`; Dismiss-all stays destructive, unchanged. Also set `loadingLabel` on both dialogs, fixing the round-4/round-5 `loadingLabel` gap (previously fell back to the shared "Deleting..." default even during an Approve mutation).
+
+One review round (Tier 2): 0 findings across all 6 review angles, including the critical backward-compatibility check (grepped and confirmed all 13 other `DeleteAlertModal` callers still render identically since none pass `variant`) and the i18n-diff-shape check (a deliberate callback to an earlier incident this same session where a Python JSON round-trip silently collapsed a pre-existing duplicate key elsewhere in the locale file — this diff was confirmed to be exactly 2 clean insertions per file).
+
+Live-verified end-to-end before merge, against real seeded data (not mocks): opened the Approve-all dialog, confirmed via DOM inspection it renders `circle-check`/`bg-emerald-600` (not `circle-alert`/`bg-destructive`), screenshotted it, confirmed it fires the real bulk-approve mutation. Re-seeded a pending risk and confirmed Dismiss-all still renders `circle-alert`/`bg-destructive` unchanged.
