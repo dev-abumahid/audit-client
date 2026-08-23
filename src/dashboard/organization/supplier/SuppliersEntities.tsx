@@ -218,26 +218,29 @@ export default function SuppliersEntities() {
                 </div>
                 {canWrite && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-touch"
                       onClick={() => openEdit(supplier.id)}
                       aria-label={t("organization.suppliers.editFor", {
                         name: supplier.name,
                       })}
-                      className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <Pencil className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
+                      <Pencil aria-hidden="true" />
+                    </Button>
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="icon-touch"
                       onClick={() => setDeleteTargetId(supplier.id)}
                       aria-label={t("organization.suppliers.deleteFor", {
                         name: supplier.name,
                       })}
-                      className="focus-ring flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      className="hover:bg-destructive/10 hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                      <Trash2 aria-hidden="true" />
+                    </Button>
                   </div>
                 )}
               </li>

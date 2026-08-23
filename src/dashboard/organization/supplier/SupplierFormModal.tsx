@@ -2,6 +2,7 @@ import { Loader2, Save, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { COUNTRIES } from "@/data/countries"
 import { useModalA11y } from "@/hooks/useModalA11y"
@@ -72,12 +73,12 @@ export default function SupplierFormModal({
 
         <div className="space-y-3">
           <div>
-            <label
+            <Label
               htmlFor="supplier-form-name"
-              className="mb-1 block text-xs font-semibold text-foreground"
+              className="mb-1 text-xs font-semibold text-foreground"
             >
               {t("organization.suppliers.form.name")} *
-            </label>
+            </Label>
             <Input
               id="supplier-form-name"
               value={form.name}
@@ -87,12 +88,12 @@ export default function SupplierFormModal({
           </div>
 
           <div>
-            <label
+            <Label
               htmlFor="supplier-form-country"
-              className="mb-1 block text-xs font-medium text-muted-foreground"
+              className="mb-1 text-xs font-medium text-muted-foreground"
             >
               {t("organization.suppliers.form.country")}
-            </label>
+            </Label>
             <Input
               id="supplier-form-country"
               list="supplier-form-country-list"
@@ -110,12 +111,12 @@ export default function SupplierFormModal({
           </div>
 
           <div>
-            <label
+            <Label
               htmlFor="supplier-form-notes"
-              className="mb-1 block text-xs font-medium text-muted-foreground"
+              className="mb-1 text-xs font-medium text-muted-foreground"
             >
               {t("organization.suppliers.form.notes")}
-            </label>
+            </Label>
             <Textarea
               id="supplier-form-notes"
               value={form.notes}

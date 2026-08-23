@@ -2591,3 +2591,64 @@ stayed inside the dialog), confirmed the X close button and Cancel/Save
 both still work, confirmed "Find suppliers" renders as a real 44px
 Button. Bonus: cancel/save/close and the discovery trigger all reach the
 44px touch target as a side effect of adopting `size="touch"`.
+
+## Round 15
+
+Full panel re-dispatched (round 14's fix had a minor intentional behavior
+change, didn't cleanly qualify for the narrow-scope carve-out).
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | unchanged |
+| UX | 7/10 | unchanged |
+| Efficiency | 7/10 | unchanged |
+| Accessibility | 7/10 | unchanged |
+| Visual/design polish | 7/10 | unchanged |
+| Resilience & edge cases | 8/10 | unchanged |
+| Code quality/maintainability | 8/10 | unchanged |
+| Cross-view integration | 6/10 | +1 |
+| Mobile/responsive | 9/10 | **+2** |
+| Security | 9/10 | unchanged |
+
+**Average: 7.2/10** — not converged. Below floor (7): industry-standards
+(4), cross-view integration (6).
+
+### Highlights
+
+- **Mobile jumped 7->9/10**: every touch-target finding tracked since
+  round 1 (search input, modal Cancel/Save/Close, "Find suppliers"
+  trigger, row edit/delete) is now confirmed at a real 44px, measured
+  live at 375px, with zero new regressions from the component-adoption
+  PRs. Only the deliberately-deferred discovery Add/Dismiss buttons
+  remain under the target.
+- **Resilience, security, accessibility all held their post-recovery
+  scores** through 3 more rounds of shipped fixes -- the concurrent-duplicate
+  race, the XSS round-trip, and the modal focus trap were all
+  independently re-verified live and confirmed unaffected by the
+  Button/Input/Textarea swaps.
+- **Industry-standards confirmed genuinely large-scope-exhausted** --
+  findings 1-4 (schema, grid/bulk, discovery scope, lifecycle) all
+  reconfirmed unchanged; 2 new findings (discovery re-scan silently
+  discards review state; country field has no real validation) are
+  contained but the judge itself assessed them as minor polish, "not
+  close to closing the gap" with the axis's actual blockers.
+- **A code-quality finding surfaced a likely oversight**: SuppliersEntities.tsx's
+  row edit/delete buttons still hand-roll `h-11 w-11` instead of using
+  `Button size="icon-touch"` -- unlike the discovery panel's Add/Dismiss
+  buttons, this one has no comment/tracking marking it as a deliberate
+  deferral, reading as something the round-10/12/14 sweep simply missed.
+
+### Round 16 fix selection
+
+Industry-standards remains the lowest-scored axis but stays fully
+large-scope-exhausted (skipped again). Falls to cross-view integration
+(6/10, below floor). Its own new finding this round -- a shared `Label`
+component (`src/components/ui/label.tsx`) exists and is the established
+pattern for exactly this "small form field label" context
+(UploadNotesModal.tsx, CreateTemplateWithAIDialog.tsx both already use
+it), but `SupplierFormModal.tsx` still hand-rolls 3 raw `<label>`
+elements with duplicated classes (and a real style drift: the name
+label's weight/color diverges from country/notes). Batched with code
+quality's row-button finding (same reuse-gap category, disjoint file,
+both Tier 1) -- `SuppliersEntities.tsx`'s edit/delete buttons adopt
+`Button size="icon-touch"`.
