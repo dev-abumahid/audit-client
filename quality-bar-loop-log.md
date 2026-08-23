@@ -2500,3 +2500,94 @@ Adopted the shared `Input` component for the search box
 errors, 21/21 tests pass unmodified, live-verified (confirmed the real
 Input component renders at data-slot="input", 44px height, typing and
 the debounced search filter both still work correctly).
+
+## Round 13
+
+Narrow-scope round: round 12's fix (PR #1084) was a pure component swap
+confined to 1 file, zero logic change, 21/21 tests unmodified -- only
+cross-view integration (the axis it targeted) re-judged.
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | carried forward |
+| UX | 7/10 | carried forward |
+| Efficiency | 7/10 | carried forward |
+| Accessibility | 7/10 | carried forward |
+| Visual/design polish | 7/10 | carried forward |
+| Resilience & edge cases | 8/10 | carried forward |
+| Code quality/maintainability | 8/10 | carried forward |
+| Cross-view integration | 5/10 | **-1 (regressed, already below floor)** |
+| Mobile/responsive | 7/10 | carried forward |
+| Security | 9/10 | carried forward |
+
+**Average: 6.9/10** — not converged. Below floor (7): industry-standards
+(4), cross-view integration (5).
+
+### Regression note -- not treated as a guardrail hard-stop
+
+Cross-view integration dropped 6->5, but this round shipped no fix at
+all (a pure re-judge). The drop reflects the judge doing a wider sweep
+than prior rounds -- explicitly asked this time to check the OTHER two
+component files (SupplierFormModal.tsx, SupplierDiscoveryPanel.tsx), not
+just the one file round 10/12's fixes touched -- and finding the same
+Button/Input-reuse debt already fixed in SuppliersEntities.tsx is still
+present, unfixed, in both siblings. This is newly-*surfaced* pre-existing
+debt, not a defect *introduced* by round 12's shipped fix (which the
+judge independently confirmed is itself correct and consistent with the
+rest of the app). Round 7's guardrail stop was for a live, reproducible
+bug a just-shipped fix actually caused; this is different in kind --
+proceeding with normal round-14 selection rather than re-escalating.
+
+### Cross-view integration re-judge findings
+
+- Input fix (round 12) confirmed live and correctly scoped, consistent
+  with TemplatesPage.tsx's own pattern.
+- Findings 1/2/3 (supplier<->risk linkage, Sites & Entities visibility,
+  Card wrapper) all confirmed still open, unchanged.
+- **New finding**: `SuppliersEntities.tsx` now uses the shared
+  Input/Button components, but its two sibling files in the same feature
+  don't -- `SupplierFormModal.tsx` hand-rolls 2 inputs and 3 buttons
+  (close/cancel/save) that directly duplicate Input's `h-11` pattern and
+  Button's `icon-touch`/`default` variants; `SupplierDiscoveryPanel.tsx`
+  hand-rolls 3 more buttons (check/add/dismiss) the same way. The fix
+  landed in one file of three, widening rather than closing the
+  intra-feature inconsistency.
+- **New finding**: a shared, Radix-backed `Dialog` component
+  (`src/components/ui/dialog.tsx`) exists and is the established
+  migration target for hand-rolled modals -- a sibling domain's own
+  `AttestConfirmModal.tsx` explicitly documents having migrated from
+  "a hand-rolled overlay div + useModalA11y" to it. `SupplierFormModal.tsx`
+  is still exactly that pre-migration pattern. Large-scope (a real
+  structural rewrite, same caliber as the Card-wrapper deferral), not a
+  candidate for a Tier 1 round.
+- No shared Skeleton/EmptyState component gap -- confirmed no such shared
+  primitive exists anywhere in the codebase yet, so the discovery panel's
+  hand-rolled loading skeleton isn't a reuse miss.
+
+### Round 14 fix selection
+
+Cross-view integration selected again (5/10, below floor, and now the
+clearest concentration of contained, well-precedented findings in the
+whole loop). Scoped to the Button/Input reuse fixes in
+`SupplierFormModal.tsx` and `SupplierDiscoveryPanel.tsx` -- same
+established pattern as rounds 10/12, just applied to the two files that
+were missed. The Dialog-consolidation finding is deferred alongside the
+Card-wrapper one as its own large-scope follow-up.
+
+Round 14 shipped: `SupplierFormModal.tsx` now uses `Input`/`Textarea`/
+`Button` (close="ghost icon-touch", cancel="outline touch",
+save="default touch") for all its form controls, and
+`SupplierDiscoveryPanel.tsx`'s "Find suppliers" trigger now uses `Button
+size="touch"` -- the discovery panel's Add/Dismiss buttons were
+deliberately left alone (they're the already-flagged, separately-tracked
+cross-cutting fix shared with RegulatoryCoverageSuggestions.tsx,
+task_4d9734c5). Tier 1/2 boundary -- typecheck clean, lint 0 errors,
+21/21 tests pass unmodified. Live-verified thoroughly given the larger
+diff: opened the Add Supplier modal, confirmed all 3 fields render as
+the real shared components (Input x2, Textarea via data-slot), saved a
+real supplier, edited it (fields correctly prefilled through the new
+Input components), confirmed the focus trap still holds (10 Tab presses,
+stayed inside the dialog), confirmed the X close button and Cancel/Save
+both still work, confirmed "Find suppliers" renders as a real 44px
+Button. Bonus: cancel/save/close and the discovery trigger all reach the
+44px touch target as a side effect of adopting `size="touch"`.

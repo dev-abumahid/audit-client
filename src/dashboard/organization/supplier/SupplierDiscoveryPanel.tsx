@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { CircleCheck, Loader2, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { isHttpUrl } from "@/utils/isHttpUrl"
 import type { SuggestedSupplier } from "@/redux/apis/organization/supplier.api"
 import {
@@ -163,20 +164,20 @@ export default function SupplierDiscoveryPanel({
             {t("organization.suppliers.discovery.subtitle")}
           </p>
         </div>
-        <button
+        <Button
           type="button"
+          size="touch"
           onClick={runDiscovery}
           disabled={isLoading}
           aria-busy={isLoading}
-          className="focus-ring flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            <Loader2 className="animate-spin" aria-hidden="true" />
           ) : (
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <Sparkles aria-hidden="true" />
           )}
           {t("organization.suppliers.discovery.checkButton")}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-3" aria-live="polite">

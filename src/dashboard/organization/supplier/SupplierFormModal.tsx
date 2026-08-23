@@ -1,5 +1,8 @@
 import { Loader2, Save, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { COUNTRIES } from "@/data/countries"
 import { useModalA11y } from "@/hooks/useModalA11y"
 
@@ -56,14 +59,15 @@ export default function SupplierFormModal({
               ? t("organization.suppliers.form.editTitle")
               : t("organization.suppliers.form.newTitle")}
           </h2>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-touch"
             onClick={onClose}
             aria-label={t("organization.suppliers.form.close")}
-            className="focus-ring flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:text-foreground"
           >
-            <X className="h-5 w-5" />
-          </button>
+            <X />
+          </Button>
         </div>
 
         <div className="space-y-3">
@@ -74,11 +78,11 @@ export default function SupplierFormModal({
             >
               {t("organization.suppliers.form.name")} *
             </label>
-            <input
+            <Input
               id="supplier-form-name"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-11 w-full"
             />
           </div>
 
@@ -89,14 +93,14 @@ export default function SupplierFormModal({
             >
               {t("organization.suppliers.form.country")}
             </label>
-            <input
+            <Input
               id="supplier-form-country"
               list="supplier-form-country-list"
               value={form.country}
               onChange={(e) =>
                 setForm((p) => ({ ...p, country: e.target.value }))
               }
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-11 w-full"
             />
             <datalist id="supplier-form-country-list">
               {COUNTRIES.map((country) => (
@@ -112,37 +116,31 @@ export default function SupplierFormModal({
             >
               {t("organization.suppliers.form.notes")}
             </label>
-            <textarea
+            <Textarea
               id="supplier-form-notes"
-              rows={3}
               value={form.notes}
               onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="focus-ring h-10 rounded-md border border-border px-4 text-sm font-medium text-foreground hover:bg-muted"
-          >
+          <Button type="button" variant="outline" size="touch" onClick={onClose}>
             {t("organization.suppliers.form.cancel")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            size="touch"
             onClick={onSave}
             disabled={isSaving || !form.name.trim()}
-            className="focus-ring flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="animate-spin" aria-hidden="true" />
             ) : (
-              <Save className="h-4 w-4" aria-hidden="true" />
+              <Save aria-hidden="true" />
             )}
             {t("organization.suppliers.form.save")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
