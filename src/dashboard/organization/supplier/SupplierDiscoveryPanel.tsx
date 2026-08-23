@@ -384,7 +384,7 @@ export default function SupplierDiscoveryPanel({
                               : "organization.suppliers.discovery.addFor",
                             { name: candidate.supplier_name }
                           )}
-                          className="focus-ring flex items-center gap-1 rounded-md border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:hover:bg-transparent"
+                          className="focus-ring flex min-h-11 items-center gap-1 rounded-md border border-primary/30 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:hover:bg-transparent"
                         >
                           {isAdded && (
                             <CircleCheck className="h-3 w-3" aria-hidden="true" />
@@ -411,7 +411,7 @@ export default function SupplierDiscoveryPanel({
                             "organization.suppliers.discovery.dismissFor",
                             { name: candidate.supplier_name }
                           )}
-                          className="focus-ring rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+                          className="focus-ring flex min-h-11 items-center rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
                         >
                           {t("organization.suppliers.discovery.dismiss")}
                         </button>
