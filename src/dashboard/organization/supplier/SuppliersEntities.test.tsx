@@ -139,6 +139,20 @@ describe("SuppliersEntities", () => {
     })
   })
 
+  it("shows a distinct duplicate-name toast when create hits the backend's 409", async () => {
+    const user = userEvent.setup()
+    mockUnwrapRejects(mockCreateNewSupplier, { status: 409 })
+    render(<SuppliersEntities />)
+
+    await user.click(screen.getByRole("button", { name: "organization.suppliers.addSupplier" }))
+    await user.type(screen.getByLabelText("organization.suppliers.form.name *"), "Acme Steel")
+    await user.click(screen.getByRole("button", { name: "organization.suppliers.form.save" }))
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("organization.suppliers.createDuplicate")
+    })
+  })
+
   it("pre-fills the edit form with the existing supplier's data", async () => {
     const user = userEvent.setup()
     render(<SuppliersEntities />)
@@ -286,6 +300,48 @@ describe("SuppliersEntities", () => {
 
       await user.click(addButton)
       expect(mockCreateNewSupplier).not.toHaveBeenCalled()
+    })
+
+    it("marks a candidate added (not failed) when the backend rejects it as a 409 race", async () => {
+      // The client-side existingNames check can miss a genuine race (dedup
+      // query not yet refetched, a second tab) -- the backend's own
+      // uniqueness constraint is the real backstop, and the UI should
+      // treat that the same as an already-known duplicate rather than a
+      // generic failure that invites a doomed retry.
+      const user = userEvent.setup()
+      mockUnwrap(mockDiscoverSuppliers, {
+        data: {
+          suppliers_information: [
+            {
+              supplier_name: "Raced Co",
+              supplier_country: null,
+              relationship: null,
+              source_url: null,
+            },
+          ],
+        },
+      })
+      mockUnwrapRejects(mockCreateNewSupplier, { status: 409 })
+      render(<SuppliersEntities />)
+
+      await user.click(
+        screen.getByRole("button", { name: "organization.suppliers.discovery.checkButton" })
+      )
+      await screen.findByText("Raced Co")
+      await user.click(
+        screen.getByRole("button", {
+          name: "organization.suppliers.discovery.addFor Raced Co",
+        })
+      )
+
+      await waitFor(() => {
+        expect(mockToastError).toHaveBeenCalledWith(
+          "organization.suppliers.discovery.addDuplicate"
+        )
+      })
+      expect(
+        screen.getByRole("button", { name: "organization.suppliers.discovery.addedFor Raced Co" })
+      ).toBeDisabled()
     })
 
     it("dismissing a candidate removes it from view without persisting anything", async () => {

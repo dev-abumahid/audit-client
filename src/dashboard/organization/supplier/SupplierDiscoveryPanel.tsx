@@ -118,8 +118,20 @@ export default function SupplierDiscoveryPanel({
       }).unwrap()
       setStatus((prev) => new Map(prev).set(index, "added"))
       toast.success(t("organization.suppliers.discovery.added"))
-    } catch {
-      toast.error(t("organization.suppliers.discovery.addFailed"))
+    } catch (err: unknown) {
+      // A race the client-side existingNames check above didn't catch (the
+      // dedup query hadn't refetched yet, a second tab, etc.) still hits
+      // the backend's own uniqueness constraint -- treat that the same as
+      // an already-known duplicate (mark added, so Add doesn't just 409
+      // again on retry) rather than a generic failure.
+      const isDuplicate =
+        typeof err === "object" && err !== null && "status" in err && err.status === 409
+      if (isDuplicate) {
+        setStatus((prev) => new Map(prev).set(index, "added"))
+        toast.error(t("organization.suppliers.discovery.addDuplicate"))
+      } else {
+        toast.error(t("organization.suppliers.discovery.addFailed"))
+      }
     }
   }
 

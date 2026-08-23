@@ -2212,3 +2212,127 @@ creating, and per-candidate "added" status is session-only/index-keyed,
 so revisiting the page re-offers an already-accepted candidate. (UX's
 other finding, bulk-accept for discovery results, is large-scope --
 skipped.)
+
+## Round 7 — GUARDRAIL STOP (below-floor regression)
+
+Full panel re-dispatched (round 6's fix changed real behavior, not
+pure-CSS, so the narrow-scope carve-out didn't apply).
+
+| Axis | Score | Δ |
+|---|---|---|
+| Industry-standards | 4/10 | unchanged |
+| UX | 7/10 | unchanged (new bug found, see below) |
+| Efficiency | 7/10 | **-1 (regressed, at floor)** |
+| Accessibility | 7/10 | unchanged (net: 1 fixed, 2 new found) |
+| Visual/design polish | 7/10 | unchanged |
+| Resilience & edge cases | 6/10 | **-1 (regressed, BELOW floor)** |
+| Code quality/maintainability | 8/10 | unchanged |
+| Cross-view integration | 5/10 | unchanged |
+| Mobile/responsive | 7/10 | unchanged |
+| Security | 9/10 | +1 |
+
+**Average: 6.7/10.**
+
+### GUARDRAIL TRIPPED: resilience dropped below its floor (7 -> 6)
+
+Live-verified by the resilience judge: aexa-server's `Supplier` Prisma
+model has no `@@unique` on `name`, and `create_supplier_into_db` does a
+bare `prisma.supplier.create()` with zero duplicate check. Two identical-
+name `POST /supplier` calls, issued ~5ms apart, both returned `200
+success: true` -- confirmed via direct API calls (test rows cleaned up
+after, org left at 0 suppliers). This means round 6's PR #1081 client-side
+dedup (`existingNames` Set, checked before calling `createNewSupplier`) is
+the *only* thing preventing a duplicate -- a pure client-side
+time-of-check-to-time-of-use (TOCTOU) gap with no backend backstop. Any
+race (slow dedup-query fetch on mount, a second browser tab, a teammate
+adding the same supplier concurrently, or the manual-add form used for a
+name just AI-added) can silently create a real duplicate row, and the UI
+shows a **false-positive success toast** since the backend genuinely
+succeeds -- worse than "no dedup at all," since it looks protected but
+isn't reliably. The dedup query's own degraded/error state is also
+invisible to the user beyond a `console.warn` (no toast/banner) -- so a
+user has no way to know protection is off even when it visibly fails.
+
+### Other round 7 findings (informational, not the guardrail trigger)
+
+**Efficiency regression (8->7, at floor):** round 6's dedup query
+(`useGetAllSuppliersQuery({page:1, limit:100, searchTerm:""})`) fires
+unconditionally on every Suppliers page mount, regardless of whether
+discovery is ever used, and does not share a cache entry with
+SuppliersEntities.tsx's own paginated query (different RTK Query cache
+key) -- two overlapping `/supplier` GETs on first load instead of one.
+
+**New UX bug (bulk/broken-functionality, not yet in the fix pool):**
+deleting a session-accepted candidate's underlying supplier record leaves
+that candidate's local `status` Map entry stale -- `isAdded` still ORs in
+the local session state, so the candidate stays permanently disabled/
+"Added" even though the real record is gone and could legitimately be
+re-added. Only a full page reload (which resets `status`) clears it.
+
+**Accessibility (net unchanged, but composition changed):** the country-
+pill contrast bug from round 1 (`text-muted-foreground` at 4.36-4.48:1)
+appears to have been fixed by an unrelated global CSS-var change (now
+5.06-5.41:1, confirmed via `src/index.css:106-116`'s own updated
+comments) -- NOT by this loop's own work, discovered incidentally. Two
+NEW a11y issues found in round 6's own disabled-button pattern: (a) the
+`disabled` attribute removes the "added" button from the Tab sequence
+entirely rather than just visually dimming it -- a keyboard/screen-reader
+user tabs straight past a still-visible candidate row with zero
+announcement of why it can't be added (`aria-disabled` instead of
+`disabled` would fix this); (b) the single shared `isAdding` mutation
+state disables every candidate's Add button simultaneously with no
+per-item `aria-busy`/loading signal distinguishing which one is actually
+saving.
+
+**Industry-standards, code quality, cross-view integration, visual
+polish, mobile:** all confirmed unchanged, no new findings beyond what
+round 6's diff was already known to touch (dedup logic assessed as clean/
+well-integrated by code quality, honestly-scoped by security, correctly
+inheriting rather than introducing the known small-button touch-target
+gap by mobile).
+
+### Escalating to the user per this loop's guardrail
+
+Per the skill's guardrail rules, a below-floor regression is a hard stop
+-- not something to keep looping through autonomously. Diagnosis: round
+6's dedup fix (PR #1081) solved a real UX bug (duplicate AI-discovery
+candidates) but introduced a real resilience gap (client-only protection
+against a backend with zero enforcement), and the fix's own review round
+didn't catch this because no review angle specifically asked "does the
+backend actually enforce what this client-side check assumes." Awaiting
+user direction before continuing.
+
+User chose "fix the regression next."
+
+## Round 8 — fixing the round 7 guardrail regression
+
+Fix ships across 2 repos:
+
+**aexa-server PR #392**: added a hand-written case-insensitive per-org
+unique index on `Supplier(org_account_id, lower(trim(name)))` (Prisma's
+schema DSL has no functional-index syntax -- same pattern as
+FindingAssignment/InspectionAssignment's partial unique indexes).
+`create_supplier_into_db`/`update_supplier_into_db` now catch the
+resulting P2002 and return a clean 409 instead of a raw 500, matching
+every other unique-constraint race in that codebase. Live-verified
+against the real DB: replicated the exact race from round 7's finding via
+two concurrent authenticated fetches -- one 200, one clean 409 (not a
+500).
+
+**aexa-frontend (this repo)**: `SuppliersEntities.tsx`'s manual add/edit
+and `SupplierDiscoveryPanel.tsx`'s AI-accept both now distinguish a 409
+from a generic failure -- a clear "A supplier with this name already
+exists" toast instead of "failed to add," and the AI-discovery panel
+marks a 409'd candidate "added" (not just failed) so retrying doesn't
+just 409 again. Live-verified end-to-end through the real UI (not just
+direct API calls): added a supplier, then submitted the same name
+(differently cased/padded) through the actual Add Supplier form,
+confirmed the exact toast and that the modal kept the typed input intact.
+
+Tier 3 for the backend change (data model), full pipeline. Frontend side
+scoped as Tier 2 (contained, reusing the discovery panel's existing
+error-status-narrowing pattern). Both PRs' review rounds documented in
+their own PR threads; this log entry covers the design/verification
+summary. Once both merge, round 9 re-runs the full panel (this changes
+real behavior in 2 repos, doesn't qualify for the narrow-scope carve-out)
+to confirm resilience is back above its floor.

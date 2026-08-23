@@ -100,12 +100,22 @@ export default function SuppliersEntities() {
         toast.success(t("organization.suppliers.createSuccess"))
       }
       closeForm()
-    } catch {
+    } catch (err: unknown) {
+      // The backend rejects a duplicate name (case/whitespace-insensitive,
+      // per org) with a 409 -- give that its own clear message instead of
+      // the generic "failed" toast, since "try a different name" is
+      // actionable in a way "something went wrong" isn't.
+      const isDuplicate =
+        typeof err === "object" && err !== null && "status" in err && err.status === 409
       toast.error(
         t(
-          editingId
-            ? "organization.suppliers.updateFailed"
-            : "organization.suppliers.createFailed"
+          isDuplicate
+            ? editingId
+              ? "organization.suppliers.updateDuplicate"
+              : "organization.suppliers.createDuplicate"
+            : editingId
+              ? "organization.suppliers.updateFailed"
+              : "organization.suppliers.createFailed"
         )
       )
     }
