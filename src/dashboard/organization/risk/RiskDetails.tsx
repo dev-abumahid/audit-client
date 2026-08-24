@@ -5,6 +5,7 @@ import { useGetSingleRiskQuery } from "@/redux/apis/organization/risk.api"
 import { formatLocaleDate } from "@/utils/formatDate"
 import { RISK_CATEGORIES, riskCategoryLabel } from "@/utils/riskConfig"
 import { formatEbitdaSectorLabel } from "@/utils/ebitdaSector"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
 import {
@@ -184,19 +185,45 @@ export default function RiskDetails() {
                   DB, so showing this badge there would be noise, not
                   signal. See organization.d.ts's Risk.source_type comment. */}
               {risk.ai_generated && risk.source_type === "anchored" ? (
-                <span
-                  className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
-                  title={
-                    risk.source_reference
-                      ? t("organization.riskRegister.confirmedTooltip", {
-                          reference: risk.source_reference,
-                        })
-                      : t("organization.riskRegister.confirmedBadge")
-                  }
-                >
-                  <CircleCheckBig className="h-3 w-3 shrink-0" />
-                  {t("organization.riskRegister.confirmedBadge")}
-                </span>
+                (() => {
+                  const confirmedClassName =
+                    "flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
+                  const confirmedTitle = risk.source_reference
+                    ? t("organization.riskRegister.confirmedTooltip", {
+                        reference: risk.source_reference,
+                      })
+                    : t("organization.riskRegister.confirmedBadge")
+                  const confirmedContent = (
+                    <>
+                      <CircleCheckBig className="h-3 w-3 shrink-0" />
+                      {t("organization.riskRegister.confirmedBadge")}
+                    </>
+                  )
+                  // Decision 3b, GDELT (risk-source-badge-clickthrough
+                  // plan): source_url is only ever real for the EXTERNAL
+                  // anchoring path -- distinct from CitationConfidenceBadge's
+                  // sourceUrl (RegulatoryFramework's, a different source).
+                  // Same isHttpUrl guard, same focus-ring/target=_blank/
+                  // rel=noopener convention.
+                  return isHttpUrl(risk.source_url) ? (
+                    <a
+                      href={risk.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`focus-ring ${confirmedClassName}`}
+                      title={confirmedTitle}
+                      aria-label={t(
+                        "organization.riskRegister.confirmedLinkAriaLabel"
+                      )}
+                    >
+                      {confirmedContent}
+                    </a>
+                  ) : (
+                    <span className={confirmedClassName} title={confirmedTitle}>
+                      {confirmedContent}
+                    </span>
+                  )
+                })()
               ) : risk.ai_generated ? (
                 <span
                   className="text-[10px] text-muted-foreground"

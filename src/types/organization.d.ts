@@ -233,6 +233,15 @@ export interface Risk {
   // pre-existing row.
   source_type: "anchored" | "estimated" | null
   source_reference: string | null
+  // Decision 3b, GDELT (risk-source-badge-clickthrough plan): the real link
+  // target for the "Confirmed" badge -- distinct from regulatoryFramework's
+  // source_url below (a different source: this is for the EXTERNAL
+  // anchoring path, e.g. a GDELT article; that one is for the regulatory
+  // citation). Only ever set for externally-anchored, non-citation-anchored
+  // risks (see aiRiskAnalysis.service.ts's persistGeneratedRisk gating);
+  // null for most sources today until each gains it in its own follow-on
+  // step -- see the plan's Step Groups 5-12.
+  source_url: string | null
   // Decision 3a (risk-source-badge-clickthrough plan): joined off
   // regulatory_framework_id via risk.service.ts's include -- the real
   // source link target for the "Cited" citation-confidence badge. null

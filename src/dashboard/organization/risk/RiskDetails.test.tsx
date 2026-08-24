@@ -168,6 +168,81 @@ describe("RiskDetails", () => {
     ).toBeInTheDocument()
   })
 
+  // Decision 3b, GDELT (risk-source-badge-clickthrough plan)
+  it("renders the Confirmed badge as a clickable link when source_url is a valid https URL", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "anchored",
+          source_reference: "GDELT: 3+ negative-coverage articles",
+          source_url: "https://example.com/adverse-coverage-article",
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText(
+      "organization.riskRegister.confirmedBadge"
+    )
+    const link = badge.closest("a")
+    expect(link).toHaveAttribute(
+      "href",
+      "https://example.com/adverse-coverage-article"
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+    expect(link).toHaveAttribute(
+      "aria-label",
+      "organization.riskRegister.confirmedLinkAriaLabel"
+    )
+  })
+
+  it("stays a plain span (not a link) when source_url is null", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "anchored",
+          source_reference: "GDELT: 3+ negative-coverage articles",
+          source_url: null,
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText(
+      "organization.riskRegister.confirmedBadge"
+    )
+    expect(badge.closest("a")).toBeNull()
+    expect(badge.closest("span")).toBeInTheDocument()
+  })
+
+  it("stays a plain span when source_url is a non-http(s) scheme (XSS guard)", () => {
+    mockUseGetSingleRiskQuery.mockReturnValue({
+      data: {
+        data: makeRisk({
+          ai_generated: true,
+          source_type: "anchored",
+          source_reference: "GDELT: 3+ negative-coverage articles",
+          source_url: "javascript:alert(1)",
+        }),
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    const badge = screen.getByText(
+      "organization.riskRegister.confirmedBadge"
+    )
+    expect(badge.closest("a")).toBeNull()
+  })
+
   it("falls back to the plain Anchored label as the tooltip when source_reference is null", () => {
     // Round-1 review found this component and RiskRegisterPage.tsx
     // handled a null source_reference on an "anchored" risk differently

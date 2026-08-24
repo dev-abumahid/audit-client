@@ -303,6 +303,53 @@ describe("RiskRegisterPage", () => {
     expect(document.querySelector(".lucide-circle-check-big")).not.toBeInTheDocument()
   })
 
+  // Decision 3b, GDELT (risk-source-badge-clickthrough plan)
+  it("wraps the confirmed icon in a link when source_url is a valid https URL", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            ai_generated: true,
+            source_type: "anchored",
+            source_reference: "GDELT: 3+ negative-coverage articles",
+            source_url: "https://example.com/adverse-coverage-article",
+          }),
+        ],
+      },
+    })
+
+    renderPage()
+
+    const icon = document.querySelector(".lucide-circle-check-big")
+    const link = icon?.closest("a")
+    expect(link).toHaveAttribute(
+      "href",
+      "https://example.com/adverse-coverage-article"
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+  })
+
+  it("does not wrap the confirmed icon in a link when source_url is null", () => {
+    mockUseGetAllRisksQuery.mockReturnValue({
+      data: {
+        data: [
+          makeRisk({
+            ai_generated: true,
+            source_type: "anchored",
+            source_reference: "GDELT: 3+ negative-coverage articles",
+            source_url: null,
+          }),
+        ],
+      },
+    })
+
+    renderPage()
+
+    const icon = document.querySelector(".lucide-circle-check-big")
+    expect(icon?.closest("a")).toBeNull()
+  })
+
   it("shows the citation confidence badge in the register table when set", () => {
     // Round-1 quality-bar-loop finding (cross-view integration): this
     // signal used to exist only in the pending-review queue and vanish

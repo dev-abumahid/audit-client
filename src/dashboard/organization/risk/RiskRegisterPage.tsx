@@ -15,6 +15,7 @@ import { canWriteOrgResource, useMyOrgRole } from "@/hooks/useMyOrgRole"
 import { useRiskBulkActions } from "@/hooks/useRiskBulkActions"
 import { useRiskCsvExport } from "@/hooks/useRiskCsvExport"
 import type { Risk, SiteSummary } from "@/types/organization"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 import { RISK_CATEGORIES } from "@/utils/riskConfig"
 import { getRiskSeverityLevel, isValidScoreValue } from "@/utils/riskScoring"
 import { severityBadgeClasses } from "@/utils/severityStyles"
@@ -322,19 +323,34 @@ const RiskRow = memo(function RiskRow({
                 Compact icon-only indicator here (row is already dense);
                 the full "Confirmed"/"Unconfirmed" badge with citation lives
                 on RiskDetails.tsx. */}
-            {risk.source_type === "anchored" && (
-              <span
-                title={
-                  risk.source_reference
-                    ? t("organization.riskRegister.confirmedTooltip", {
-                        reference: risk.source_reference,
-                      })
-                    : t("organization.riskRegister.confirmedBadge")
-                }
-              >
-                <CircleCheckBig className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              </span>
-            )}
+            {risk.source_type === "anchored" &&
+              (() => {
+                const confirmedTitle = risk.source_reference
+                  ? t("organization.riskRegister.confirmedTooltip", {
+                      reference: risk.source_reference,
+                    })
+                  : t("organization.riskRegister.confirmedBadge")
+                const icon = (
+                  <CircleCheckBig className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                )
+                // Decision 3b, GDELT (risk-source-badge-clickthrough plan)
+                return isHttpUrl(risk.source_url) ? (
+                  <a
+                    href={risk.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="focus-ring"
+                    title={confirmedTitle}
+                    aria-label={t(
+                      "organization.riskRegister.confirmedLinkAriaLabel"
+                    )}
+                  >
+                    {icon}
+                  </a>
+                ) : (
+                  <span title={confirmedTitle}>{icon}</span>
+                )
+              })()}
           </span>
         ) : (
           t("organization.riskRegister.manual")

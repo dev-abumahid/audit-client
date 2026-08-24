@@ -1368,6 +1368,7 @@
       "confirmedTooltip": "Fondé sur des données externes vérifiées : {{reference}}",
       "unconfirmedBadge": "Non confirmé",
       "unconfirmedTooltip": "Estimation par IA, non fondée sur des données externes",
+      "confirmedLinkAriaLabel": "Ouvrir la source dans un nouvel onglet",
       "editRisk": "Modifier le risque",
       "deleteRisk": "Supprimer le risque",
       "addRisk": "Ajouter un risque",

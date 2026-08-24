@@ -1368,6 +1368,7 @@
       "confirmedTooltip": "Grounded in verified external data: {{reference}}",
       "unconfirmedBadge": "Unconfirmed",
       "unconfirmedTooltip": "AI estimate, not grounded in external data",
+      "confirmedLinkAriaLabel": "Open source in a new tab",
       "editRisk": "Edit Risk",
       "deleteRisk": "Delete Risk",
       "addRisk": "Add Risk",
