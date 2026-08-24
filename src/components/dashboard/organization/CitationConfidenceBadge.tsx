@@ -1,5 +1,6 @@
 import { useId } from "react"
 import { useTranslation } from "react-i18next"
+import { BookOpen } from "lucide-react"
 import type { Risk } from "@/types/organization"
 
 interface CitationConfidenceBadgeProps {
@@ -73,9 +74,12 @@ export default function CitationConfidenceBadge({
     <button
       type="button"
       aria-describedby={hintId}
-      className={`focus-ring inline-flex items-center rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`}
+      className={`focus-ring inline-flex items-center gap-1 rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`}
       title={hint}
     >
+      {confidence === "curated_verified" && (
+        <BookOpen className="h-3 w-3 shrink-0" />
+      )}
       {t(`organization.riskRegister.citationConfidence.${confidence}`)}
       <span id={hintId} className="sr-only">
         {hint}

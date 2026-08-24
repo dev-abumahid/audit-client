@@ -265,11 +265,11 @@ describe("RiskRegisterPage", () => {
 
     renderPage()
 
-    const icon = document.querySelector(".lucide-anchor")
+    const icon = document.querySelector(".lucide-circle-check-big")
     expect(icon).toBeInTheDocument()
     expect(icon?.closest("span")).toHaveAttribute(
       "title",
-      "organization.riskRegister.anchoredTooltip"
+      "organization.riskRegister.confirmedTooltip"
     )
   })
 
@@ -300,7 +300,7 @@ describe("RiskRegisterPage", () => {
 
     renderPage()
 
-    expect(document.querySelector(".lucide-anchor")).not.toBeInTheDocument()
+    expect(document.querySelector(".lucide-circle-check-big")).not.toBeInTheDocument()
   })
 
   it("shows the citation confidence badge in the register table when set", () => {

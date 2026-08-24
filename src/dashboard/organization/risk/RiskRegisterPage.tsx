@@ -23,12 +23,12 @@ import RiskApprovalControls from "./RiskApprovalControls"
 import RiskFormModal from "./RiskFormModal"
 import RiskOverrideBadge from "./RiskOverrideBadge"
 import {
-  Anchor,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
   Bot,
   Building2,
+  CircleCheckBig,
   Clock,
   Download,
   Loader,
@@ -320,19 +320,19 @@ const RiskRow = memo(function RiskRow({
             {/* source_type only carries real meaning for AI-generated
                 risks -- see organization.d.ts's Risk.source_type comment.
                 Compact icon-only indicator here (row is already dense);
-                the full "Anchored"/"Estimated" badge with citation lives
+                the full "Confirmed"/"Unconfirmed" badge with citation lives
                 on RiskDetails.tsx. */}
             {risk.source_type === "anchored" && (
               <span
                 title={
                   risk.source_reference
-                    ? t("organization.riskRegister.anchoredTooltip", {
+                    ? t("organization.riskRegister.confirmedTooltip", {
                         reference: risk.source_reference,
                       })
-                    : t("organization.riskRegister.anchoredBadge")
+                    : t("organization.riskRegister.confirmedBadge")
                 }
               >
-                <Anchor className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <CircleCheckBig className="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
               </span>
             )}
           </span>
@@ -343,7 +343,7 @@ const RiskRow = memo(function RiskRow({
             PendingAiReviewPanel): citation_confidence previously vanished
             once a risk left the pending-review queue -- carries over here
             as a compact badge, same shared component the queue itself now
-            uses, distinct from the Anchor/source_type indicator above
+            uses, distinct from the source_type indicator above
             (regulatory-citation confidence, not external-data grounding). */}
         {risk.citation_confidence && (
           <div className="mt-0.5">

@@ -156,13 +156,16 @@ describe("RiskDetails", () => {
     renderPage()
 
     const badge = screen.getByText(
-      "organization.riskRegister.anchoredBadge"
+      "organization.riskRegister.confirmedBadge"
     )
     expect(badge).toBeInTheDocument()
     expect(badge.closest("span")).toHaveAttribute(
       "title",
-      "organization.riskRegister.anchoredTooltip"
+      "organization.riskRegister.confirmedTooltip"
     )
+    expect(
+      badge.closest("span")?.querySelector(".lucide-circle-check-big")
+    ).toBeInTheDocument()
   })
 
   it("falls back to the plain Anchored label as the tooltip when source_reference is null", () => {
@@ -186,11 +189,11 @@ describe("RiskDetails", () => {
     renderPage()
 
     const badge = screen.getByText(
-      "organization.riskRegister.anchoredBadge"
+      "organization.riskRegister.confirmedBadge"
     )
     expect(badge.closest("span")).toHaveAttribute(
       "title",
-      "organization.riskRegister.anchoredBadge"
+      "organization.riskRegister.confirmedBadge"
     )
   })
 
@@ -209,10 +212,10 @@ describe("RiskDetails", () => {
     renderPage()
 
     expect(
-      screen.getByText("organization.riskRegister.estimatedBadge")
+      screen.getByText("organization.riskRegister.unconfirmedBadge")
     ).toBeInTheDocument()
     expect(
-      screen.queryByText("organization.riskRegister.anchoredBadge")
+      screen.queryByText("organization.riskRegister.confirmedBadge")
     ).not.toBeInTheDocument()
   })
 
@@ -278,10 +281,10 @@ describe("RiskDetails", () => {
     renderPage()
 
     expect(
-      screen.queryByText("organization.riskRegister.anchoredBadge")
+      screen.queryByText("organization.riskRegister.confirmedBadge")
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByText("organization.riskRegister.estimatedBadge")
+      screen.queryByText("organization.riskRegister.unconfirmedBadge")
     ).not.toBeInTheDocument()
   })
 

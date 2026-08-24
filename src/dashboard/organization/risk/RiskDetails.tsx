@@ -13,10 +13,10 @@ import {
 } from "@/utils/lineOfDefense"
 import {
   AlertCircle,
-  Anchor,
   Bot,
   Building2,
   ChevronLeft,
+  CircleCheckBig,
   Euro,
   Gauge,
   Shield,
@@ -188,21 +188,21 @@ export default function RiskDetails() {
                   className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
                   title={
                     risk.source_reference
-                      ? t("organization.riskRegister.anchoredTooltip", {
+                      ? t("organization.riskRegister.confirmedTooltip", {
                           reference: risk.source_reference,
                         })
-                      : t("organization.riskRegister.anchoredBadge")
+                      : t("organization.riskRegister.confirmedBadge")
                   }
                 >
-                  <Anchor className="h-3 w-3 shrink-0" />
-                  {t("organization.riskRegister.anchoredBadge")}
+                  <CircleCheckBig className="h-3 w-3 shrink-0" />
+                  {t("organization.riskRegister.confirmedBadge")}
                 </span>
               ) : risk.ai_generated ? (
                 <span
                   className="text-[10px] text-muted-foreground"
-                  title={t("organization.riskRegister.estimatedTooltip")}
+                  title={t("organization.riskRegister.unconfirmedTooltip")}
                 >
-                  {t("organization.riskRegister.estimatedBadge")}
+                  {t("organization.riskRegister.unconfirmedBadge")}
                 </span>
               ) : null}
               {/* Round-1 quality-bar-loop finding (cross-view integration,

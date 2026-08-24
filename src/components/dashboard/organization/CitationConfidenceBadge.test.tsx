@@ -108,4 +108,28 @@ describe("CitationConfidenceBadge", () => {
     const ids = badges.map((b) => b.getAttribute("aria-describedby"))
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  it("renders a BookOpen icon only for curated_verified, not ai_estimate/none", () => {
+    const { container: verified } = render(
+      <CitationConfidenceBadge confidence="curated_verified" />
+    )
+    const { container: estimate } = render(
+      <CitationConfidenceBadge confidence="ai_estimate" />
+    )
+    const { container: none } = render(
+      <CitationConfidenceBadge confidence="none" />
+    )
+    expect(verified.querySelector(".lucide-book-open")).toBeInTheDocument()
+    expect(
+      estimate.querySelector(".lucide-book-open")
+    ).not.toBeInTheDocument()
+    expect(none.querySelector(".lucide-book-open")).not.toBeInTheDocument()
+  })
+
+  it("keeps a gap between the icon and label text (regression guard)", () => {
+    const { container } = render(
+      <CitationConfidenceBadge confidence="curated_verified" />
+    )
+    expect(container.querySelector("button")?.className).toMatch(/gap-1/)
+  })
 })
