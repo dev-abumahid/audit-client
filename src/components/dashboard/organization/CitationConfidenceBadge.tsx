@@ -2,9 +2,18 @@ import { useId } from "react"
 import { useTranslation } from "react-i18next"
 import { BookOpen } from "lucide-react"
 import type { Risk } from "@/types/organization"
+import { isHttpUrl } from "@/utils/isHttpUrl"
 
 interface CitationConfidenceBadgeProps {
   confidence: Risk["citation_confidence"]
+  // Decision 3a (risk-source-badge-clickthrough plan): when set and a real
+  // http(s) URL, curated_verified renders as a clickable link to the cited
+  // framework's own source instead of a plain, non-interactive pill.
+  // Omitted entirely on purpose at the Pending AI Review call site -- a
+  // pending, unapproved risk shouldn't get a link that visually
+  // pre-validates an AI-suggested citation before a reviewer has confirmed
+  // it, see RiskDetails.tsx/RiskRegisterPage.tsx's call sites.
+  sourceUrl?: string | null
   size?: "sm" | "md"
 }
 
@@ -46,6 +55,7 @@ const STYLES: Record<
 
 export default function CitationConfidenceBadge({
   confidence,
+  sourceUrl,
   size = "sm",
 }: CitationConfidenceBadgeProps) {
   const { t } = useTranslation()
@@ -57,6 +67,40 @@ export default function CitationConfidenceBadge({
   const hint = t(
     `organization.riskRegister.citationConfidence.${confidence}Hint`
   )
+  const className = `focus-ring inline-flex items-center gap-1 rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`
+  const icon = confidence === "curated_verified" && (
+    <BookOpen className="h-3 w-3 shrink-0" />
+  )
+  const label = t(`organization.riskRegister.citationConfidence.${confidence}`)
+  const hintSpan = (
+    <span id={hintId} className="sr-only">
+      {hint}
+    </span>
+  )
+
+  // Decision 3a: a real, valid source link takes priority over the plain
+  // button -- same isHttpUrl guard the backend's own httpUrl Zod refinement
+  // uses, so a non-http(s) value (or the ~2/21 seeded frameworks with no
+  // source_url at all) never reaches an href.
+  if (confidence === "curated_verified" && isHttpUrl(sourceUrl)) {
+    return (
+      <a
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-describedby={hintId}
+        className={className}
+        title={hint}
+        aria-label={t(
+          "organization.riskRegister.citationConfidence.citedLinkAriaLabel"
+        )}
+      >
+        {icon}
+        {label}
+        {hintSpan}
+      </a>
+    )
+  }
 
   return (
     // Round-2 quality-bar-loop review finding: a native `title` tooltip is
@@ -71,19 +115,10 @@ export default function CitationConfidenceBadge({
     // disclosure to open) -- purely a focusable label, same shape as a
     // plain "i" info-icon button elsewhere. `title` is kept too, so mouse
     // users still get the native browser tooltip.
-    <button
-      type="button"
-      aria-describedby={hintId}
-      className={`focus-ring inline-flex items-center gap-1 rounded-full font-medium ${style.bg} ${style.text} ${sizeClasses}`}
-      title={hint}
-    >
-      {confidence === "curated_verified" && (
-        <BookOpen className="h-3 w-3 shrink-0" />
-      )}
-      {t(`organization.riskRegister.citationConfidence.${confidence}`)}
-      <span id={hintId} className="sr-only">
-        {hint}
-      </span>
+    <button type="button" aria-describedby={hintId} className={className} title={hint}>
+      {icon}
+      {label}
+      {hintSpan}
     </button>
   )
 }

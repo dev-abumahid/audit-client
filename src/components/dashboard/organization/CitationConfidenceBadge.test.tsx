@@ -132,4 +132,62 @@ describe("CitationConfidenceBadge", () => {
     )
     expect(container.querySelector("button")?.className).toMatch(/gap-1/)
   })
+
+  // Decision 3a (risk-source-badge-clickthrough plan)
+  it("renders as a clickable link when curated_verified has a valid https sourceUrl", () => {
+    const { container } = render(
+      <CitationConfidenceBadge
+        confidence="curated_verified"
+        sourceUrl="https://www.legifrance.gouv.fr/example"
+      />
+    )
+    const link = container.querySelector("a")
+    expect(link).toHaveAttribute(
+      "href",
+      "https://www.legifrance.gouv.fr/example"
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+    expect(link).toHaveAttribute(
+      "aria-label",
+      "organization.riskRegister.citationConfidence.citedLinkAriaLabel"
+    )
+    expect(container.querySelector("button")).not.toBeInTheDocument()
+  })
+
+  it("stays a plain button when curated_verified has a null sourceUrl", () => {
+    const { container } = render(
+      <CitationConfidenceBadge confidence="curated_verified" sourceUrl={null} />
+    )
+    expect(container.querySelector("button")).toBeInTheDocument()
+    expect(container.querySelector("a")).not.toBeInTheDocument()
+  })
+
+  it("stays a plain button when sourceUrl is a non-http(s) scheme (XSS guard)", () => {
+    const { container } = render(
+      <CitationConfidenceBadge
+        confidence="curated_verified"
+        sourceUrl="javascript:alert(1)"
+      />
+    )
+    expect(container.querySelector("button")).toBeInTheDocument()
+    expect(container.querySelector("a")).not.toBeInTheDocument()
+  })
+
+  it("never renders a link for ai_estimate/none even when sourceUrl is present", () => {
+    const { container: estimate } = render(
+      <CitationConfidenceBadge
+        confidence="ai_estimate"
+        sourceUrl="https://example.com"
+      />
+    )
+    const { container: none } = render(
+      <CitationConfidenceBadge
+        confidence="none"
+        sourceUrl="https://example.com"
+      />
+    )
+    expect(estimate.querySelector("a")).not.toBeInTheDocument()
+    expect(none.querySelector("a")).not.toBeInTheDocument()
+  })
 })

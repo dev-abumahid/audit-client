@@ -215,6 +215,7 @@ export default function RiskDetails() {
                   when actually set. */}
               <CitationConfidenceBadge
                 confidence={risk.citation_confidence}
+                sourceUrl={risk.regulatoryFramework?.source_url}
                 size="md"
               />
             </div>

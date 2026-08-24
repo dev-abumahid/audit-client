@@ -233,6 +233,12 @@ export interface Risk {
   // pre-existing row.
   source_type: "anchored" | "estimated" | null
   source_reference: string | null
+  // Decision 3a (risk-source-badge-clickthrough plan): joined off
+  // regulatory_framework_id via risk.service.ts's include -- the real
+  // source link target for the "Cited" citation-confidence badge. null
+  // when no framework is cited, or the cited framework has no source_url
+  // on file (2 of 21 seeded frameworks, see seed-regulatory-frameworks.ts).
+  regulatoryFramework: { source_url: string | null } | null
 }
 
 // Mirrors aexa-server's RiskApproval Prisma model (issue #95). A risk's

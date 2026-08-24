@@ -347,7 +347,10 @@ const RiskRow = memo(function RiskRow({
             (regulatory-citation confidence, not external-data grounding). */}
         {risk.citation_confidence && (
           <div className="mt-0.5">
-            <CitationConfidenceBadge confidence={risk.citation_confidence} />
+            <CitationConfidenceBadge
+              confidence={risk.citation_confidence}
+              sourceUrl={risk.regulatoryFramework?.source_url}
+            />
           </div>
         )}
       </td>

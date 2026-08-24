@@ -725,6 +725,31 @@ describe("PendingAiReviewPanel", () => {
     ])
   })
 
+  // Decision 3a (risk-source-badge-clickthrough plan): regression-guards
+  // the deliberate no-sourceUrl-passthrough decision -- even a risk with a
+  // real regulatoryFramework.source_url must not render a clickable
+  // citation link here, since it hasn't been through approval review yet.
+  it("never renders the citation badge as a clickable link, even with a real regulatoryFramework.source_url", () => {
+    mockUseGetAllRisksQuery.mockImplementation(
+      routeByReviewStatus([
+        makePendingRisk({
+          citation_confidence: "curated_verified",
+          regulatoryFramework: {
+            source_url: "https://www.legifrance.gouv.fr/example",
+          },
+        }),
+      ])
+    )
+
+    render(<PendingAiReviewPanel canWrite={true} />)
+
+    expect(
+      screen.getByText(
+        "organization.riskRegister.citationConfidence.curated_verified"
+      ).closest("a")
+    ).toBeNull()
+  })
+
   it("shows dismissed risks only after 'Show dismissed' is clicked (lazy query)", async () => {
     mockUseGetAllRisksQuery.mockImplementation(
       routeByReviewStatus(

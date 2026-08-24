@@ -456,6 +456,11 @@ export default function PendingAiReviewPanel({
                             {risk.name}
                           </span>
                         )}
+                        {/* sourceUrl intentionally omitted: a pending,
+                            unapproved risk shouldn't get a link that
+                            visually pre-validates an AI-suggested citation
+                            before a reviewer has confirmed it. See
+                            CitationConfidenceBadge.tsx's sourceUrl comment. */}
                         <CitationConfidenceBadge
                           confidence={risk.citation_confidence}
                         />
